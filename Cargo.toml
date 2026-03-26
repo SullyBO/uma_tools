@@ -5,3 +5,5 @@ members = [
     # "crates/uma-api",     when ready
 ]
 resolver = "2"
+
+[workspace.dependencies]
