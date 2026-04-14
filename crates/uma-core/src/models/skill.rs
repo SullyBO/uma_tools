@@ -1,11 +1,16 @@
 pub struct Skill {
     pub id: u32,
     pub name: String,
-    pub acquisition: AcquisitionMethod,
     pub ingame_description: String,
-    pub detailed_description: String,
     pub category: SkillCategory,
     pub rarity: SkillRarity,
+    pub sp_cost: u32,
+    pub eval_points: u32,
+}
+
+pub struct CharacterSkill {
+    pub skill_id: u32,
+    pub acquisition: AcquisitionMethod,
 }
 
 pub enum AcquisitionMethod {
@@ -29,6 +34,7 @@ pub enum SkillCategory {
     VisionDebuff,
 }
 
+#[derive(Copy, Clone)]
 pub enum SkillRarity {
     Normal,
     Rare,
