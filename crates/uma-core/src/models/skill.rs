@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Skill {
     pub id: u32,
     pub name: String,
@@ -19,6 +20,7 @@ pub enum AcquisitionMethod {
     Event,
 }
 
+#[derive(Debug)]
 pub enum SkillCategory {
     Green,
     Recovery,
@@ -34,7 +36,7 @@ pub enum SkillCategory {
     VisionDebuff,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum SkillRarity {
     Normal,
     Rare,

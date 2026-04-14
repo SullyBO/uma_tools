@@ -1,0 +1,11 @@
+[package]
+name = "uma-scraper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uma-core = { path = "../uma-core" }
+reqwest = { version = "0.13.2", features = ["json"] }
+scraper = "0.26"
+tokio = { version = "1", features = ["full"] }
+thiserror = "2"
