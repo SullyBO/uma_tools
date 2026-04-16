@@ -1,9 +1,49 @@
+use log::{debug, info, warn};
 use scraper::{ElementRef, Html, Selector};
+use std::collections::HashMap;
 use uma_core::models::skill::{Skill, SkillCategory, SkillRarity};
+
+enum ParseRowResult {
+    Parsed(Skill),
+    Skipped(SkipReason),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum SkipReason {
+    NoIconCell,
+    NoIconId,
+    NoNameCell,
+    JpOnly,
+    NoName,
+    NoSkillId,
+    NoDescription,
+    NoSpCost,
+    NoEvalPoints,
+    UnknownIcon,
+}
+
+impl SkipReason {
+    fn as_str(&self) -> &'static str {
+        match self {
+            SkipReason::NoIconCell => "no icon cell",
+            SkipReason::NoIconId => "could not extract icon_id",
+            SkipReason::NoNameCell => "no name cell",
+            SkipReason::JpOnly => "JP-only skill",
+            SkipReason::NoName => "could not extract name",
+            SkipReason::NoSkillId => "could not extract skill_id",
+            SkipReason::NoDescription => "no description cell",
+            SkipReason::NoSpCost => "could not parse sp_cost",
+            SkipReason::NoEvalPoints => "could not parse eval_points",
+            SkipReason::UnknownIcon => "unknown icon_id",
+        }
+    }
+}
 
 pub fn parse_skills_page(html: &str) -> Vec<Skill> {
     let document = Html::parse_document(html);
     let mut skills = Vec::new();
+    let mut total_rows = 0;
+    let mut skip_reasons: HashMap<SkipReason, usize> = HashMap::new();
 
     let rarity_sections = [
         ("Common_Skills", SkillRarity::Normal),
@@ -15,10 +55,32 @@ pub fn parse_skills_page(html: &str) -> Vec<Skill> {
         if let Some(table) = find_table_after_heading(&document, heading_id) {
             let row_sel = Selector::parse("tbody tr").unwrap();
             for row in table.select(&row_sel) {
-                if let Some(skill) = parse_skill_row(&row, rarity) {
-                    skills.push(skill);
+                total_rows += 1;
+                match parse_skill_row(&row, rarity) {
+                    ParseRowResult::Parsed(skill) => skills.push(skill),
+                    ParseRowResult::Skipped(reason) => {
+                        *skip_reasons.entry(reason).or_insert(0) += 1;
+                    }
                 }
             }
+        } else {
+            warn!("Section '{heading_id}' not found in page");
+        }
+    }
+
+    let total_skipped: usize = skip_reasons.values().sum();
+
+    info!(
+        "Parsing complete: {} skills parsed, {} skipped out of {} total rows",
+        skills.len(),
+        total_skipped,
+        total_rows
+    );
+
+    if !skip_reasons.is_empty() {
+        info!("Skip reasons:");
+        for (reason, count) in &skip_reasons {
+            info!("  {}: {count}", reason.as_str());
         }
     }
 
@@ -37,52 +99,67 @@ fn find_table_after_heading<'a>(document: &'a Html, heading_id: &str) -> Option<
         .find(|table| table.id() > heading_node_id)
 }
 
-fn parse_skill_row(row: &ElementRef, rarity: SkillRarity) -> Option<Skill> {
+fn parse_skill_row(row: &ElementRef, rarity: SkillRarity) -> ParseRowResult {
+    macro_rules! try_or_skip {
+        ($expr:expr, $reason:expr) => {
+            match $expr {
+                Some(v) => v,
+                None => {
+                    debug!("Skipping row: {}", $reason.as_str());
+                    return ParseRowResult::Skipped($reason);
+                }
+            }
+        };
+    }
+
     let td_sel = Selector::parse("td").unwrap();
     let mut tds = row.select(&td_sel);
 
-    let icon_td = tds.next()?;
-    println!("icon_td ok");
-    let icon_id = extract_icon_id(&icon_td);
-    println!("icon_id: {:?}", icon_id);
-    let icon_id = icon_id?;
+    let icon_td = try_or_skip!(tds.next(), SkipReason::NoIconCell);
+    let icon_id = try_or_skip!(extract_icon_id(&icon_td), SkipReason::NoIconId);
+    let name_td = try_or_skip!(tds.next(), SkipReason::NoNameCell);
 
-    let name_td = tds.next()?;
-    println!("name_td ok");
-    let name = name_td
-        .select(&Selector::parse("b a").unwrap())
+    if name_td
+        .select(&Selector::parse("sup").unwrap())
         .next()
-        .map(|a| a.text().collect::<String>());
-    println!("name: {:?}", name);
-    let name = name?;
+        .is_some()
+    {
+        debug!("Skipping row: JP-only skill");
+        return ParseRowResult::Skipped(SkipReason::JpOnly);
+    }
 
-    let id = extract_skill_id(&name_td);
-    println!("id: {:?}", id);
-    let id = id?;
+    let name = try_or_skip!(
+        name_td
+            .select(&Selector::parse("b a").unwrap())
+            .next()
+            .map(|a| a.text().collect::<String>()),
+        SkipReason::NoName
+    );
+    let id = try_or_skip!(extract_skill_id(&name_td), SkipReason::NoSkillId);
+    let description = try_or_skip!(
+        tds.next()
+            .map(|td| td.text().collect::<String>().trim().to_string()),
+        SkipReason::NoDescription
+    );
+    let sp_cost = try_or_skip!(
+        tds.next()
+            .and_then(|td| td.text().collect::<String>().trim().parse::<u32>().ok()),
+        SkipReason::NoSpCost
+    );
+    let eval_points = try_or_skip!(
+        tds.next()
+            .and_then(|td| td.text().collect::<String>().trim().parse::<u32>().ok()),
+        SkipReason::NoEvalPoints
+    );
+    let category = try_or_skip!(icon_id_to_category(icon_id), SkipReason::UnknownIcon);
 
-    let description = tds
-        .next()
-        .map(|td| td.text().collect::<String>().trim().to_string());
-    println!("description: {:?}", description);
-    let description = description?;
+    debug!("Parsed skill '{name}' (id={id}, rarity={rarity:?}, category={category:?})");
 
-    let sp_cost = tds
-        .next()
-        .and_then(|td| td.text().collect::<String>().trim().parse::<u32>().ok());
-    println!("sp_cost: {:?}", sp_cost);
-    let sp_cost = sp_cost?;
-
-    let eval_points = tds
-        .next()
-        .and_then(|td| td.text().collect::<String>().trim().parse::<u32>().ok());
-    println!("eval_points: {:?}", eval_points);
-    let eval_points = eval_points?;
-
-    Some(Skill {
+    ParseRowResult::Parsed(Skill {
         id,
         name,
         ingame_description: description,
-        category: icon_id_to_category(icon_id),
+        category,
         rarity,
         sp_cost,
         eval_points,
@@ -110,9 +187,73 @@ fn extract_skill_id(td: &ElementRef) -> Option<u32> {
     href.split('/').last()?.parse().ok()
 }
 
-fn icon_id_to_category(icon_id: u32) -> SkillCategory {
-    // TODO: map icon IDs to categories once we have the full list
-    todo!("icon_id_to_category: {icon_id}")
+fn icon_id_to_category(icon_id: u32) -> Option<SkillCategory> {
+    let category = match icon_id {
+        10011 => SkillCategory::Green, // Speed
+        10012 => SkillCategory::Green, // Gold Speed
+        10021 => SkillCategory::Green, // Stamina
+        10022 => SkillCategory::Green, // Gold Stamina
+        10031 => SkillCategory::Green, // Power
+        10032 => SkillCategory::Green, // Gold Power
+        10041 => SkillCategory::Green, // Guts
+        10051 => SkillCategory::Green, // Wit
+        10052 => SkillCategory::Green, // Gold Wit
+        10061 => SkillCategory::Green, // Lucky seven
+        10062 => SkillCategory::Green, // Super lucky seven
+        40012 => SkillCategory::Green, // Runaway
+        20021 => SkillCategory::Recovery,
+        20022 => SkillCategory::Recovery,
+        20023 => SkillCategory::Recovery,
+        20011 => SkillCategory::Velocity,
+        20012 => SkillCategory::Velocity,
+        20013 => SkillCategory::Velocity,
+        20041 => SkillCategory::Acceleration,
+        20042 => SkillCategory::Acceleration,
+        20043 => SkillCategory::Acceleration,
+        20051 => SkillCategory::Movement,
+        20052 => SkillCategory::Movement,
+        20061 => SkillCategory::Gate,
+        20062 => SkillCategory::Gate,
+        20091 => SkillCategory::Vision,
+        20092 => SkillCategory::Vision,
+        30011 => SkillCategory::SpeedDebuff,
+        30012 => SkillCategory::SpeedDebuff,
+        30021 => SkillCategory::AccelDebuff,
+        30022 => SkillCategory::AccelDebuff,
+        30041 => SkillCategory::FrenzyDebuff,
+        30051 => SkillCategory::StaminaDrain,
+        30052 => SkillCategory::StaminaDrain,
+        30071 => SkillCategory::VisionDebuff,
+        30072 => SkillCategory::VisionDebuff,
+        10014 => SkillCategory::Purple,     // Speed
+        10024 => SkillCategory::Purple,     // Stamina
+        10034 => SkillCategory::Purple,     // Power
+        10044 => SkillCategory::Purple,     // Guts
+        10054 => SkillCategory::Purple,     // Wit
+        20064 => SkillCategory::Purple,     // Gate
+        20014 => SkillCategory::Purple,     // Velocity
+        20015 => SkillCategory::Purple,     // Gold Velocity
+        20044 => SkillCategory::Purple,     // Accel
+        20045 => SkillCategory::Purple,     // Gold Accel
+        20024 => SkillCategory::Purple,     // Recovery
+        20101 => SkillCategory::Scenario,   // Ignited SPD
+        20102 => SkillCategory::Scenario,   // Burning SPD
+        20121 => SkillCategory::Scenario,   // Ignited PWR
+        20122 => SkillCategory::Scenario,   // Burning PWR
+        20111 => SkillCategory::Scenario,   // Ignited STA
+        20112 => SkillCategory::Scenario,   // Burning STA
+        20131 => SkillCategory::Scenario,   // Ignited WIT
+        20132 => SkillCategory::Scenario,   // Burning WIT
+        20141 => SkillCategory::Scenario,   // Glittering Star
+        20142 => SkillCategory::Scenario,   // Radiant Star
+        2010010 => SkillCategory::Velocity, // Best in Japan
+        other => {
+            warn!("Unknown icon_id: {other}, skill will be skipped");
+            return None;
+        }
+    };
+    debug!("Mapped icon_id {icon_id} to {category:?}");
+    Some(category)
 }
 
 #[cfg(test)]
