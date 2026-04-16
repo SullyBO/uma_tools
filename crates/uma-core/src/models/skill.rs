@@ -31,9 +31,11 @@ pub enum SkillCategory {
     Vision,
     SpeedDebuff,
     AccelDebuff,
-    RushDebuff,
+    FrenzyDebuff,
     StaminaDrain,
     VisionDebuff,
+    Purple,
+    Scenario,
 }
 
 #[derive(Copy, Clone, Debug)]
