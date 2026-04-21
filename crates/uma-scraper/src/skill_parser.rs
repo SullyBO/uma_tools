@@ -3,42 +3,7 @@ use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
 use uma_core::models::skill::{Skill, SkillCategory, SkillRarity};
 
-enum ParseRowResult {
-    Parsed(Skill),
-    Skipped(SkipReason),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum SkipReason {
-    NoIconCell,
-    NoIconId,
-    NoNameCell,
-    JpOnly,
-    NoName,
-    NoSkillId,
-    NoDescription,
-    NoSpCost,
-    NoEvalPoints,
-    UnknownIcon,
-}
-
-impl SkipReason {
-    fn as_str(&self) -> &'static str {
-        match self {
-            SkipReason::NoIconCell => "no icon cell",
-            SkipReason::NoIconId => "could not extract icon_id",
-            SkipReason::NoNameCell => "no name cell",
-            SkipReason::JpOnly => "JP-only skill",
-            SkipReason::NoName => "could not extract name",
-            SkipReason::NoSkillId => "could not extract skill_id",
-            SkipReason::NoDescription => "no description cell",
-            SkipReason::NoSpCost => "could not parse sp_cost",
-            SkipReason::NoEvalPoints => "could not parse eval_points",
-            SkipReason::UnknownIcon => "unknown icon_id",
-        }
-    }
-}
-
+/// Parses the skills table page from the umamusume wiki
 pub fn parse_skills_page(html: &str) -> Vec<Skill> {
     let document = Html::parse_document(html);
     let mut skills = Vec::new();
@@ -85,6 +50,42 @@ pub fn parse_skills_page(html: &str) -> Vec<Skill> {
     }
 
     skills
+}
+
+enum ParseRowResult {
+    Parsed(Skill),
+    Skipped(SkipReason),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum SkipReason {
+    NoIconCell,
+    NoIconId,
+    NoNameCell,
+    JpOnly,
+    NoName,
+    NoSkillId,
+    NoDescription,
+    NoSpCost,
+    NoEvalPoints,
+    UnknownIcon,
+}
+
+impl SkipReason {
+    fn as_str(&self) -> &'static str {
+        match self {
+            SkipReason::NoIconCell => "no icon cell",
+            SkipReason::NoIconId => "could not extract icon_id",
+            SkipReason::NoNameCell => "no name cell",
+            SkipReason::JpOnly => "JP-only skill",
+            SkipReason::NoName => "could not extract name",
+            SkipReason::NoSkillId => "could not extract skill_id",
+            SkipReason::NoDescription => "no description cell",
+            SkipReason::NoSpCost => "could not parse sp_cost",
+            SkipReason::NoEvalPoints => "could not parse eval_points",
+            SkipReason::UnknownIcon => "unknown icon_id",
+        }
+    }
 }
 
 fn find_table_after_heading<'a>(document: &'a Html, heading_id: &str) -> Option<ElementRef<'a>> {

@@ -9,17 +9,6 @@ pub struct Skill {
     pub eval_points: u32,
 }
 
-pub struct CharacterSkill {
-    pub skill_id: u32,
-    pub acquisition: AcquisitionMethod,
-}
-
-pub enum AcquisitionMethod {
-    Innate,
-    Awakening,
-    Event,
-}
-
 #[derive(Debug)]
 pub enum SkillCategory {
     Green,

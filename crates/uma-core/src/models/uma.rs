@@ -1,4 +1,5 @@
-use crate::ids::{SkillId, UmaId};
+use crate::ids::UmaId;
+use crate::uma_skill::UmaSkill;
 use std::fmt::Display;
 
 pub struct Uma {
@@ -8,7 +9,7 @@ pub struct Uma {
     pub rarity: UmaRarity,
     pub base_stats: BaseStats,
     pub aptitudes: Aptitudes,
-    pub skill_ids: Vec<SkillId>,
+    pub skill_list: Vec<UmaSkill>,
 }
 
 pub enum UmaRarity {

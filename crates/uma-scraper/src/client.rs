@@ -86,14 +86,14 @@ impl ScraperClient {
 
     /// Fetch many pages concurrently, respecting the concurrency limit and rate limits.
     /// Failures are captured per-URL rather than aborting the whole batch.
-    pub async fn fetch_all(&self, urls: &[&str]) -> Vec<ScraperResult<String>> {
+    pub async fn fetch_all(&self, urls: &[impl AsRef<str>]) -> Vec<ScraperResult<String>> {
         let semaphore = self.semaphore.clone();
 
         let tasks: Vec<_> = urls
             .iter()
-            .map(|&url| {
+            .map(|url| {
                 let sem = semaphore.clone();
-                let url = url.to_string();
+                let url = url.as_ref().to_string();
                 async move {
                     // Acquiring the permit gates concurrency across all tasks
                     let _permit = sem.acquire().await.expect("semaphore closed");
