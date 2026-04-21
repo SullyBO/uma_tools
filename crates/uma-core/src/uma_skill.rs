@@ -6,6 +6,7 @@ pub enum SkillAcquisition {
     Innate,
     Awakening,
     Event,
+    Evolution,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

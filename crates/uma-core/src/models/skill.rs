@@ -32,4 +32,5 @@ pub enum SkillRarity {
     Normal,
     Rare,
     Unique,
+    Evolution,
 }
