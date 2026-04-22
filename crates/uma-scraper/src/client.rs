@@ -1,11 +1,9 @@
+use crate::error::{ScraperError, ScraperResult};
+use reqwest::Client;
 use std::sync::Arc;
 use std::time::Duration;
-
-use reqwest::Client;
 use tokio::sync::Semaphore;
 use tokio::time::sleep;
-
-use crate::error::{ScraperError, ScraperResult};
 
 const DEFAULT_MAX_CONCURRENCY: usize = 5;
 const DEFAULT_MIN_DELAY: Duration = Duration::from_millis(500);

@@ -1,8 +1,10 @@
 use log::{debug, info, warn};
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
-use uma_core::ids::SkillId;
-use uma_core::models::skill::{Skill, SkillCategory, SkillRarity};
+use uma_core::{
+    ids::SkillId,
+    models::skill::{Skill, SkillCategory, SkillRarity},
+};
 
 /// Parses the skills table page from the umamusume wiki
 pub fn parse_skills_page(html: &str) -> Vec<Skill> {
