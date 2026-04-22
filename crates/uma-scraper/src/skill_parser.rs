@@ -1,6 +1,7 @@
 use log::{debug, info, warn};
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
+use uma_core::ids::SkillId;
 use uma_core::models::skill::{Skill, SkillCategory, SkillRarity};
 
 /// Parses the skills table page from the umamusume wiki
@@ -136,7 +137,7 @@ fn parse_skill_row(row: &ElementRef, rarity: SkillRarity) -> ParseRowResult {
             .map(|a| a.text().collect::<String>()),
         SkipReason::NoName
     );
-    let id = try_or_skip!(extract_skill_id(&name_td), SkipReason::NoSkillId);
+    let id: SkillId = try_or_skip!(extract_skill_id(&name_td), SkipReason::NoSkillId);
     let description = try_or_skip!(
         tds.next()
             .map(|td| td.text().collect::<String>().trim().to_string()),
@@ -154,7 +155,7 @@ fn parse_skill_row(row: &ElementRef, rarity: SkillRarity) -> ParseRowResult {
     );
     let category = try_or_skip!(icon_id_to_category(icon_id), SkipReason::UnknownIcon);
 
-    debug!("Parsed skill '{name}' (id={id}, rarity={rarity:?}, category={category:?})");
+    debug!("Parsed skill '{name}' (id={id:?}, rarity={rarity:?}, category={category:?})");
 
     ParseRowResult::Parsed(Skill {
         id,
@@ -181,11 +182,11 @@ fn extract_icon_id(td: &ElementRef) -> Option<u32> {
     filename.parse().ok()
 }
 
-fn extract_skill_id(td: &ElementRef) -> Option<u32> {
+fn extract_skill_id(td: &ElementRef) -> Option<SkillId> {
     let a_sel = Selector::parse("b a").unwrap();
     let href = td.select(&a_sel).next()?.value().attr("href")?;
     // href looks like: /Game:Skills/200011
-    href.split('/').last()?.parse().ok()
+    href.split('/').last()?.parse::<u32>().ok().map(SkillId)
 }
 
 fn icon_id_to_category(icon_id: u32) -> Option<SkillCategory> {
@@ -260,6 +261,8 @@ fn icon_id_to_category(icon_id: u32) -> Option<SkillCategory> {
 #[cfg(test)]
 mod tests {
 
+    use uma_core::ids::SkillId;
+
     use crate::skill_parser::parse_skills_page;
 
     // Minimal HTML that mirrors the real wiki structure:
@@ -294,7 +297,7 @@ mod tests {
         let skills = parse_skills_page(&html);
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].name, "Speed Boost");
-        assert_eq!(skills[0].id, 200011);
+        assert_eq!(skills[0].id, SkillId(200011));
     }
 
     #[test]

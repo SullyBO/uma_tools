@@ -1,6 +1,7 @@
+use crate::ids::SkillId;
 #[derive(Debug)]
 pub struct Skill {
-    pub id: u32,
+    pub id: SkillId,
     pub name: String,
     pub ingame_description: String,
     pub category: SkillCategory,
