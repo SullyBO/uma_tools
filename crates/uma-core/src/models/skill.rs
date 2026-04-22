@@ -35,3 +35,30 @@ pub enum SkillRarity {
     Unique,
     Evolution,
 }
+
+pub struct SkillEffect {
+    pub skill_id: SkillId,
+    pub stats: Vec<SkillEffectStat>,
+    pub conditions: Vec<SkillCondition>,
+}
+
+pub struct SkillEffectStat {
+    pub stat_key: String,
+    pub stat_val: String,
+}
+
+pub enum SkillOperator {
+    Eq,
+    NotEq,
+    Gt,
+    GtEq,
+    Lt,
+    LtEq,
+}
+
+pub struct SkillCondition {
+    pub is_precondition: bool,
+    pub cond_key: String,
+    pub operator: SkillOperator,
+    pub cond_val: String,
+}
