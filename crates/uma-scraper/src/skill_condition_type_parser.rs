@@ -1,4 +1,4 @@
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 
 #[derive(Debug)]
 pub struct ConditionType {
@@ -7,18 +7,18 @@ pub struct ConditionType {
     pub example: Option<String>,
 }
 
-/// Parses the skill conditions page from gametora
+/// Parses the skill conditions page from `https://gametora.com/umamusume/skill-condition-viewer`
 /// Need to use the html asset as opposed to scraping automatically
-pub fn parse_condition_types(html: &str) -> Vec<ConditionType> {
+/// So we actually parse it from /uma-scraper/assets/skill_condition_viewer.html
+pub fn parse_skill_condition_types(html: &str) -> Vec<ConditionType> {
     let document = Html::parse_document(html);
     let cond_sel = Selector::parse("div[class*='conditionviewer_cond__']").unwrap();
     let name_sel = Selector::parse("div[class*='conditionviewer_cond_name__'] b").unwrap();
     let note_sel = Selector::parse("div[class*='conditionviewer_cond_optional__']").unwrap();
     let example_sel = Selector::parse("div[class*='conditionviewer_cond_example__']").unwrap();
 
-    let mut skipped = 0usize;
-
     let mut entries = Vec::new();
+    let mut skipped = 0usize;
 
     for cond in document.select(&cond_sel) {
         let cond_key = match cond.select(&name_sel).next() {
@@ -29,79 +29,76 @@ pub fn parse_condition_types(html: &str) -> Vec<ConditionType> {
             }
         };
 
-        // First plain div after the name is the description
         let divs: Vec<_> = cond
             .children()
             .filter_map(|n| scraper::ElementRef::wrap(n))
             .filter(|el| el.value().name() == "div")
             .collect();
 
-        let description_parts: Vec<String> = divs
-            .iter()
-            .filter(|el| {
-                let class = el.value().attr("class").unwrap_or("");
-                !class.contains("cond_name")
-                    && !class.contains("cond_example")
-                    && !class.contains("cond_optional")
-            })
-            .map(|el| el.text().collect::<String>().trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        let description = parse_description(cond, &divs, &note_sel);
+        let example = cond.select(&example_sel).next().map(|el| parse_example(el, &divs));
 
-        let note = cond.select(&note_sel).next().map(|el| {
-            el.text()
-                .collect::<String>()
-                .replace("Note:", "")
-                .trim()
-                .to_string()
-        });
-
-        let description = match note {
-            Some(n) => format!("{} {}", description_parts.join(" "), n),
-            None => description_parts.join(" "),
-        };
-
-        let example = cond.select(&example_sel).next().map(|el| {
-            // Get the example div text and the next sibling (meaning div)
-            let example_text = el
-                .text()
-                .collect::<String>()
-                .replace("Example:", "")
-                .trim()
-                .to_string();
-
-            // Find meaning div - it's the plain div after the example div
-            let meaning = divs
-                .iter()
-                .skip_while(|d| d.html() != el.html())
-                .nth(1)
-                .map(|d| {
-                    d.text()
-                        .collect::<String>()
-                        .replace("Meaning:", "")
-                        .trim()
-                        .to_string()
-                })
-                .unwrap_or_default();
-
-            format!("{} — {}", example_text, meaning)
-        });
-
-        entries.push(ConditionType {
-            cond_key,
-            description,
-            example,
-        });
+        entries.push(ConditionType { cond_key, description, example });
     }
 
-    let total = entries.len();
     log::info!(
         "Condition type parsing complete: {} entries parsed, {} skipped",
-        total,
+        entries.len(),
         skipped
     );
 
     entries
+}
+
+fn parse_description(cond: ElementRef, divs: &[ElementRef], note_sel: &Selector) -> String {
+    let description_parts: Vec<String> = divs
+        .iter()
+        .filter(|el| {
+            let class = el.value().attr("class").unwrap_or("");
+            !class.contains("cond_name")
+                && !class.contains("cond_example")
+                && !class.contains("cond_optional")
+        })
+        .map(|el| el.text().collect::<String>().trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let note = cond.select(note_sel).next().map(|el| {
+        el.text()
+            .collect::<String>()
+            .replace("Note:", "")
+            .trim()
+            .to_string()
+    });
+
+    match note {
+        Some(n) => format!("{} {}", description_parts.join(" "), n),
+        None => description_parts.join(" "),
+    }
+}
+
+fn parse_example(example_el: ElementRef, divs: &[ElementRef]) -> String {
+    let example_text = example_el
+        .text()
+        .collect::<String>()
+        .replace("Example:", "")
+        .trim()
+        .to_string();
+
+    let meaning = divs
+        .iter()
+        .skip_while(|d| d.html() != example_el.html())
+        .nth(1)
+        .map(|d| {
+            d.text()
+                .collect::<String>()
+                .replace("Meaning:", "")
+                .trim()
+                .to_string()
+        })
+        .unwrap_or_default();
+
+    format!("{} — {}", example_text, meaning)
 }
 
 #[cfg(test)]
@@ -130,7 +127,7 @@ mod tests {
         "#,
         );
 
-        let results = parse_condition_types(&html);
+        let results = parse_skill_condition_types(&html);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].cond_key, "accumulatetime");
         assert!(
@@ -162,7 +159,7 @@ mod tests {
         "#,
         );
 
-        let results = parse_condition_types(&html);
+        let results = parse_skill_condition_types(&html);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].cond_key, "all_corner_random");
         assert!(
@@ -195,7 +192,7 @@ mod tests {
         "#,
         );
 
-        let results = parse_condition_types(&html);
+        let results = parse_skill_condition_types(&html);
         assert_eq!(results.len(), 0);
     }
 
@@ -218,7 +215,7 @@ mod tests {
             </body></html>"#
         );
 
-        let results = parse_condition_types(&html);
+        let results = parse_skill_condition_types(&html);
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].cond_key, "accumulatetime");
         assert_eq!(results[1].cond_key, "activate_count_all");

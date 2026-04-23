@@ -10,7 +10,7 @@ pub struct SkillDetailData {
     pub effects: Vec<SkillEffect>,
 }
 
-/// Parse skill details page from the umamusume wiki
+/// Parse skill details page from the `https://umamusu.wiki/Game:Skills/{id}`
 pub fn parse_skill_detail_page(html: &str, id: SkillId) -> Option<SkillDetailData> {
     let document = Html::parse_document(html);
     let effect_sel = Selector::parse("div.skill-effect-wrapper").unwrap();

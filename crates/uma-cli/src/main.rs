@@ -3,8 +3,8 @@ use uma_core::{ids::SkillId, models::skill::SkillEffect};
 use uma_db::db::Db as database;
 use uma_scraper::{
     client::ScraperClient, skill_detail_parser::parse_skill_detail_page,
-    skill_parser::parse_skills_table, trainee_list_parser::parse_trainee_index,
-    trainee_parser::parse_all_characters,
+    skill_parser::parse_skill_table, uma_list_parser::parse_uma_index,
+    uma_parser::parse_all_characters,
 };
 
 #[derive(Parser)]
@@ -66,7 +66,7 @@ async fn sync_skills(db: &database) {
         .fetch("https://umamusu.wiki/Game:List_of_Skills")
         .await
         .expect("failed to fetch skills index");
-    let skills = parse_skills_table(&index_html);
+    let skills = parse_skill_table(&index_html);
 
     let urls: Vec<String> = skills
         .iter()
@@ -104,7 +104,7 @@ async fn sync_characters(db: &database) {
         .fetch("https://umamusu.wiki/Game:List_of_Trainees")
         .await
         .expect("failed to fetch trainee index");
-    let entries = parse_trainee_index(&index_html);
+    let entries = parse_uma_index(&index_html);
 
     let umas = parse_all_characters(&client, &entries).await;
 

@@ -1,7 +1,7 @@
 use crate::{
     client::ScraperClient,
     error::{ScraperError, ScraperResult},
-    trainee_list_parser::TraineeIndexEntry,
+    uma_list_parser::UmaIndexEntry,
 };
 use log::{info, warn};
 use scraper::{Html, Selector};
@@ -15,9 +15,10 @@ use uma_core::{
     uma_skill::{SkillAcquisition, UmaSkill},
 };
 
+/// Parses all uma from `https://gametora.com/umamusume/characters/{id}-{name}`
 pub async fn parse_all_characters(
     client: &ScraperClient,
-    entries: &[TraineeIndexEntry],
+    entries: &[UmaIndexEntry],
 ) -> Vec<ScraperResult<Uma>> {
     let urls: Vec<String> = entries.iter().map(|e| e.gametora_url()).collect();
     let url_refs: Vec<&str> = urls.iter().map(|s| s.as_str()).collect();
