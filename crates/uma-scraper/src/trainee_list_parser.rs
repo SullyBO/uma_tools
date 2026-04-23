@@ -2,6 +2,7 @@ use log::info;
 use scraper::{Html, Selector};
 use uma_core::ids::UmaId;
 
+#[derive(Debug)]
 pub struct TraineeIndexEntry {
     pub id: UmaId,
     pub name: String,

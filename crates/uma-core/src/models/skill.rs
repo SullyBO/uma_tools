@@ -36,17 +36,20 @@ pub enum SkillRarity {
     Evolution,
 }
 
+#[derive(Debug)]
 pub struct SkillEffect {
     pub skill_id: SkillId,
     pub stats: Vec<SkillEffectStat>,
     pub conditions: Vec<SkillCondition>,
 }
 
+#[derive(Debug)]
 pub struct SkillEffectStat {
     pub stat_key: String,
     pub stat_val: String,
 }
 
+#[derive(Debug)]
 pub enum SkillOperator {
     Eq,
     NotEq,
@@ -56,6 +59,7 @@ pub enum SkillOperator {
     LtEq,
 }
 
+#[derive(Debug)]
 pub struct SkillCondition {
     pub is_precondition: bool,
     pub cond_key: String,

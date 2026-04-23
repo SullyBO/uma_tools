@@ -4,6 +4,7 @@ use uma_core::{
     models::skill::{SkillCondition, SkillEffect, SkillEffectStat, SkillOperator},
 };
 
+#[derive(Debug)]
 pub struct SkillDetailData {
     pub id: SkillId,
     pub effects: Vec<SkillEffect>,

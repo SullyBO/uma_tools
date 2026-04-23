@@ -1,5 +1,6 @@
 use scraper::{Html, Selector};
 
+#[derive(Debug)]
 pub struct ConditionType {
     pub cond_key: String,
     pub description: String,

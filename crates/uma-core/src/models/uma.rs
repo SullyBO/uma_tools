@@ -2,6 +2,7 @@ use crate::ids::UmaId;
 use crate::uma_skill::UmaSkill;
 use std::fmt::Display;
 
+#[derive(Debug)]
 pub struct Uma {
     pub id: UmaId,
     pub name: String,
@@ -13,6 +14,7 @@ pub struct Uma {
     pub skill_list: Vec<UmaSkill>,
 }
 
+#[derive(Debug)]
 pub enum UmaRarity {
     R,
     SR,
@@ -29,6 +31,7 @@ impl Display for UmaRarity {
     }
 }
 
+#[derive(Debug)]
 pub struct BaseStats {
     pub speed: u32,
     pub stamina: u32,
@@ -37,6 +40,7 @@ pub struct BaseStats {
     pub wit: u32,
 }
 
+#[derive(Debug)]
 pub struct GrowthRates {
     pub speed: u32,
     pub stamina: u32,
@@ -45,17 +49,20 @@ pub struct GrowthRates {
     pub wit: u32,
 }
 
+#[derive(Debug)]
 pub struct Aptitudes {
     pub surface: SurfaceAptitudes,
     pub distance: DistanceAptitudes,
     pub strategy: StrategyAptitudes,
 }
 
+#[derive(Debug)]
 pub struct SurfaceAptitudes {
     pub turf: AptitudeLevel,
     pub dirt: AptitudeLevel,
 }
 
+#[derive(Debug)]
 pub struct DistanceAptitudes {
     pub short: AptitudeLevel,
     pub mile: AptitudeLevel,
@@ -63,6 +70,7 @@ pub struct DistanceAptitudes {
     pub long: AptitudeLevel,
 }
 
+#[derive(Debug)]
 pub struct StrategyAptitudes {
     pub front: AptitudeLevel,
     pub pace: AptitudeLevel,
@@ -70,6 +78,7 @@ pub struct StrategyAptitudes {
     pub end: AptitudeLevel,
 }
 
+#[derive(Debug)]
 pub enum AptitudeLevel {
     A,
     B,
