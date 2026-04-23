@@ -36,9 +36,16 @@ pub fn parse_skill_condition_types(html: &str) -> Vec<ConditionType> {
             .collect();
 
         let description = parse_description(cond, &divs, &note_sel);
-        let example = cond.select(&example_sel).next().map(|el| parse_example(el, &divs));
+        let example = cond
+            .select(&example_sel)
+            .next()
+            .map(|el| parse_example(el, &divs));
 
-        entries.push(ConditionType { cond_key, description, example });
+        entries.push(ConditionType {
+            cond_key,
+            description,
+            example,
+        });
     }
 
     log::info!(
