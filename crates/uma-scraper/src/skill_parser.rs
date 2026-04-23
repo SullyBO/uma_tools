@@ -7,7 +7,7 @@ use uma_core::{
 };
 
 /// Parses the skills table page from the umamusume wiki
-pub fn parse_skills_page(html: &str) -> Vec<Skill> {
+pub fn parse_skills_table(html: &str) -> Vec<Skill> {
     let document = Html::parse_document(html);
     let mut skills = Vec::new();
     let mut total_rows = 0;
@@ -265,7 +265,7 @@ mod tests {
 
     use uma_core::ids::SkillId;
 
-    use crate::skill_parser::parse_skills_page;
+    use crate::skill_parser::parse_skills_table;
 
     // Minimal HTML that mirrors the real wiki structure:
     // - A heading with the expected span id
@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn parses_skill_name_and_id() {
         let html = make_page("Common_Skills", 20013, 200011);
-        let skills = parse_skills_page(&html);
+        let skills = parse_skills_table(&html);
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].name, "Speed Boost");
         assert_eq!(skills[0].id, SkillId(200011));
@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn parses_sp_cost_and_eval_points() {
         let html = make_page("Common_Skills", 20013, 200011);
-        let skills = parse_skills_page(&html);
+        let skills = parse_skills_table(&html);
         assert_eq!(skills[0].sp_cost, 150);
         assert_eq!(skills[0].eval_points, 120);
     }
@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn parses_ingame_description() {
         let html = make_page("Common_Skills", 20013, 200011);
-        let skills = parse_skills_page(&html);
+        let skills = parse_skills_table(&html);
         assert_eq!(
             skills[0].ingame_description,
             "Increases speed for a short time."
@@ -336,7 +336,7 @@ mod tests {
               </tbody>
             </table>
         "#;
-        let skills = parse_skills_page(html);
+        let skills = parse_skills_table(html);
         assert!(skills.is_empty());
     }
 
@@ -356,7 +356,7 @@ mod tests {
               </tbody>
             </table>
         "#;
-        let skills = parse_skills_page(html);
+        let skills = parse_skills_table(html);
         assert!(skills.is_empty());
     }
 
@@ -377,7 +377,7 @@ mod tests {
             </table>
             <h2><span id="Common_Skills"></span></h2>
         "#;
-        let skills = parse_skills_page(html);
+        let skills = parse_skills_table(html);
         assert!(skills.is_empty());
     }
 
@@ -409,7 +409,7 @@ mod tests {
               </tbody>
             </table>
         "#;
-        let skills = parse_skills_page(html);
+        let skills = parse_skills_table(html);
         assert_eq!(skills.len(), 2);
         assert_eq!(skills[0].name, "Speed Boost");
         assert_eq!(skills[1].name, "Burst");
