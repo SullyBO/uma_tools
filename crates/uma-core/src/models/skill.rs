@@ -10,7 +10,7 @@ pub struct Skill {
     pub eval_points: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum SkillCategory {
     Green,
     Recovery,
@@ -38,7 +38,6 @@ pub enum SkillRarity {
 
 #[derive(Debug)]
 pub struct SkillEffect {
-    pub skill_id: SkillId,
     pub stats: Vec<SkillEffectStat>,
     pub conditions: Vec<SkillCondition>,
 }
@@ -49,7 +48,7 @@ pub struct SkillEffectStat {
     pub stat_val: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum SkillOperator {
     Eq,
     NotEq,
@@ -65,4 +64,6 @@ pub struct SkillCondition {
     pub cond_key: String,
     pub operator: SkillOperator,
     pub cond_val: String,
+    pub description: Option<String>,
+    pub example: Option<String>,
 }

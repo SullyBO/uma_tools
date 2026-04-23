@@ -44,11 +44,7 @@ pub fn parse_skill_detail_page(html: &str, id: SkillId) -> Option<SkillDetailDat
         let stats = parse_stats(&tables[0], &tr_sel, &th_sel, &td_sel);
         let conditions = parse_conditions_table(&tables[1], &tr_sel, &th_sel, &td_sel);
 
-        effects.push(SkillEffect {
-            skill_id: id,
-            stats,
-            conditions,
-        });
+        effects.push(SkillEffect { stats, conditions });
     }
 
     log::info!(
@@ -182,6 +178,8 @@ fn parse_single_condition(s: &str, is_precondition: bool) -> Option<SkillConditi
                     cond_key,
                     operator: op_variant,
                     cond_val,
+                    description: None,
+                    example: None,
                 });
             }
         }

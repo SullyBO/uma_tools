@@ -2656,6 +2656,7 @@ name = "uma-db"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "log",
  "sqlx",
  "thiserror 2.0.18",
  "tokio",

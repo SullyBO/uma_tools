@@ -14,7 +14,7 @@ pub struct Uma {
     pub skill_list: Vec<UmaSkill>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum UmaRarity {
     R,
     SR,
@@ -49,20 +49,20 @@ pub struct GrowthRates {
     pub wit: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Aptitudes {
     pub surface: SurfaceAptitudes,
     pub distance: DistanceAptitudes,
     pub strategy: StrategyAptitudes,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct SurfaceAptitudes {
     pub turf: AptitudeLevel,
     pub dirt: AptitudeLevel,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct DistanceAptitudes {
     pub short: AptitudeLevel,
     pub mile: AptitudeLevel,
@@ -70,7 +70,7 @@ pub struct DistanceAptitudes {
     pub long: AptitudeLevel,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct StrategyAptitudes {
     pub front: AptitudeLevel,
     pub pace: AptitudeLevel,
@@ -78,7 +78,7 @@ pub struct StrategyAptitudes {
     pub end: AptitudeLevel,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum AptitudeLevel {
     A,
     B,
