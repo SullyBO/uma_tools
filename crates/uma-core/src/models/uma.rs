@@ -8,6 +8,7 @@ pub struct Uma {
     pub subtitle: String,
     pub rarity: UmaRarity,
     pub base_stats: BaseStats,
+    pub growth_rates: GrowthRates,
     pub aptitudes: Aptitudes,
     pub skill_list: Vec<UmaSkill>,
 }
@@ -29,6 +30,14 @@ impl Display for UmaRarity {
 }
 
 pub struct BaseStats {
+    pub speed: u32,
+    pub stamina: u32,
+    pub power: u32,
+    pub guts: u32,
+    pub wit: u32,
+}
+
+pub struct GrowthRates {
     pub speed: u32,
     pub stamina: u32,
     pub power: u32,

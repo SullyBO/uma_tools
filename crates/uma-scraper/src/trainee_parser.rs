@@ -9,7 +9,7 @@ use serde_json::Value;
 use uma_core::{
     ids::{SkillId, UmaId},
     models::uma::{
-        AptitudeLevel, Aptitudes, BaseStats, DistanceAptitudes, StrategyAptitudes,
+        AptitudeLevel, Aptitudes, BaseStats, DistanceAptitudes, GrowthRates, StrategyAptitudes,
         SurfaceAptitudes, Uma, UmaRarity,
     },
     uma_skill::{SkillAcquisition, UmaSkill},
@@ -96,6 +96,7 @@ pub fn parse_character_page(html: &str) -> ScraperResult<Uma> {
 
     let rarity = parse_rarity(&item["rarity"])?;
     let base_stats = parse_base_stats(&item["base_stats"])?;
+    let growth_rates = parse_growth_rates(&item["stat_bonus"])?;
     let aptitudes = parse_aptitudes(&item["aptitude"])?;
     let skill_list = parse_skills(item)?;
 
@@ -105,6 +106,7 @@ pub fn parse_character_page(html: &str) -> ScraperResult<Uma> {
         subtitle,
         rarity,
         base_stats,
+        growth_rates,
         aptitudes,
         skill_list,
     };
@@ -149,6 +151,32 @@ fn parse_base_stats(value: &Value) -> ScraperResult<BaseStats> {
     });
 
     Ok(BaseStats {
+        speed: stats.next().unwrap()?,
+        stamina: stats.next().unwrap()?,
+        power: stats.next().unwrap()?,
+        guts: stats.next().unwrap()?,
+        wit: stats.next().unwrap()?,
+    })
+}
+
+fn parse_growth_rates(value: &Value) -> ScraperResult<GrowthRates> {
+    let arr = value
+        .as_array()
+        .ok_or_else(|| ScraperError::ParseError("stat_bonus is not an array".into()))?;
+
+    if arr.len() < 5 {
+        return Err(ScraperError::ParseError(
+            "stat_bonus has fewer than 5 elements".into(),
+        ));
+    }
+
+    let mut stats = arr.iter().map(|v| {
+        v.as_u64()
+            .map(|n| n as u32)
+            .ok_or_else(|| ScraperError::ParseError("stat_bonus element is not a number".into()))
+    });
+
+    Ok(GrowthRates {
         speed: stats.next().unwrap()?,
         stamina: stats.next().unwrap()?,
         power: stats.next().unwrap()?,
@@ -251,6 +279,7 @@ mod tests {
             "title_en_gl": "[Reeling in the Big One]",
             "rarity": 3,
             "base_stats": [98, 98, 88, 83, 83],
+            "stat_bonus": [20, 0, 10, 0, 20],
             "aptitude": ["A", "G", "G", "C", "A", "A", "A", "B", "D", "E"],
             "skills_unique": [100201],
             "skills_innate": [200881, 201192],
@@ -279,6 +308,11 @@ mod tests {
         assert!(matches!(uma.aptitudes.distance.mile, AptitudeLevel::C));
         assert!(matches!(uma.aptitudes.strategy.front, AptitudeLevel::A));
         assert!(matches!(uma.aptitudes.strategy.end, AptitudeLevel::E));
+        assert_eq!(uma.growth_rates.speed, 20);
+        assert_eq!(uma.growth_rates.stamina, 0);
+        assert_eq!(uma.growth_rates.power, 10);
+        assert_eq!(uma.growth_rates.guts, 0);
+        assert_eq!(uma.growth_rates.wit, 20);
         assert_eq!(uma.skill_list.len(), 6);
     }
 
@@ -324,5 +358,14 @@ mod tests {
         let html = make_next_data(item);
         let uma = parse_character_page(&html).unwrap();
         assert_eq!(uma.skill_list.len(), 3); // unique + innate only
+    }
+
+    #[test]
+    fn errors_on_short_stat_bonus() {
+        let mut item = valid_item();
+        item["stat_bonus"] = serde_json::json!([20, 0, 10]);
+        let html = make_next_data(item);
+        let result = parse_character_page(&html);
+        assert!(matches!(result, Err(ScraperError::ParseError(_))));
     }
 }
