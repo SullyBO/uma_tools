@@ -2,7 +2,48 @@ use crate::types::{DbAptitudeLevel, DbSkillAcquisition, DbUmaRarity};
 use sqlx::PgPool;
 use uma_core::models::uma::Uma;
 
-pub async fn upsert_uma_full(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
+pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Error> {
+    let mut success = 0;
+    let mut fail_reasons: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+
+    for uma in umas {
+        match upsert_uma_full(pool, uma).await {
+            Ok(_) => success += 1,
+            Err(e) => {
+                let reason = e.to_string();
+                log::warn!(
+                    "Failed to upsert uma {} (id: {}): {reason}",
+                    uma.name,
+                    uma.id.0
+                );
+                *fail_reasons.entry(reason).or_insert(0) += 1;
+            }
+        }
+    }
+
+    let failed = fail_reasons.values().sum::<usize>();
+
+    log::info!(
+        "Uma upsert complete: {} succeeded, {} failed out of {} total",
+        success,
+        failed,
+        umas.len()
+    );
+
+    if !fail_reasons.is_empty() {
+        log::info!("Failure breakdown:");
+        let mut reasons: Vec<_> = fail_reasons.iter().collect();
+        reasons.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
+        for (reason, count) in reasons {
+            log::info!("  {count}x {reason}");
+        }
+    }
+
+    Ok(())
+}
+
+async fn upsert_uma_full(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
     upsert_uma(pool, uma).await?;
     upsert_uma_skills(pool, uma).await?;
     log::info!(
@@ -15,7 +56,7 @@ pub async fn upsert_uma_full(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error
     Ok(())
 }
 
-pub async fn upsert_uma(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
+async fn upsert_uma(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO umas (
@@ -89,18 +130,22 @@ pub async fn upsert_uma(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-pub async fn upsert_uma_skills(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
+async fn upsert_uma_skills(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
     for skill in &uma.skill_list {
+        let evolved_from = skill.acquisition.evolved_from().map(|id| id.0 as i32);
+
         sqlx::query!(
             r#"
-            INSERT INTO uma_skills (uma_id, skill_id, acquisition)
-            VALUES ($1, $2, $3)
+            INSERT INTO uma_skills (uma_id, skill_id, acquisition, evolved_from)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (uma_id, skill_id) DO UPDATE SET
-                acquisition = EXCLUDED.acquisition
+                acquisition = EXCLUDED.acquisition,
+                evolved_from = EXCLUDED.evolved_from
             "#,
             uma.id.0 as i32,
             skill.id.0 as i32,
             DbSkillAcquisition::from(skill.acquisition) as DbSkillAcquisition,
+            evolved_from,
         )
         .execute(pool)
         .await?;

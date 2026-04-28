@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 mod sync;
-use sync::{sync_characters, sync_skill_details, sync_skills};
+use sync::{sync_conditions, sync_skills, sync_uma};
 
 /// To run the CLI simply `cargo run -p uma_cli -- {COMMAND} {SUBCOMMAND}`
 #[derive(Parser)]
@@ -21,8 +21,7 @@ enum Commands {
 #[derive(Subcommand)]
 enum SyncTarget {
     Skills,
-    SkillDetails,
-    Characters,
+    Uma,
     All,
 }
 
@@ -41,13 +40,15 @@ async fn main() {
 
     match cli.command {
         Commands::Sync { target } => match target {
-            SyncTarget::Skills => sync_skills(&db).await,
-            SyncTarget::SkillDetails => sync_skill_details(&db).await,
-            SyncTarget::Characters => sync_characters(&db).await,
+            SyncTarget::Skills => {
+                sync_conditions(&db).await;
+                sync_skills(&db).await
+            }
+            SyncTarget::Uma => sync_uma(&db).await,
             SyncTarget::All => {
                 sync_skills(&db).await;
-                sync_skill_details(&db).await;
-                sync_characters(&db).await;
+                sync_conditions(&db).await;
+                sync_uma(&db).await;
             }
         },
     }

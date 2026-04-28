@@ -1,230 +1,165 @@
-use scraper::{ElementRef, Html, Selector};
+use crate::client::ScraperClient;
+use log::info;
+use serde_json::Value;
+use uma_core::models::skill::ConditionType;
 
-#[derive(Debug)]
-pub struct ConditionType {
-    pub cond_key: String,
-    pub description: String,
-    pub example: Option<String>,
+use crate::error::{ScraperError, ScraperResult};
+
+const SKILL_CONDITIONS_URL: &str =
+    "https://gametora.com/data/umamusume/static/skill_conditions.32e9f707.json";
+
+pub async fn fetch_skill_condition_types(
+    client: &ScraperClient,
+) -> ScraperResult<Vec<ConditionType>> {
+    let json = client.fetch(SKILL_CONDITIONS_URL).await?;
+    parse_skill_condition_types(&json)
 }
 
-/// Parses the skill conditions page from `https://gametora.com/umamusume/skill-condition-viewer`
-/// Need to use the html asset as opposed to scraping automatically
-/// So we actually parse it from /uma-scraper/assets/skill_condition_viewer.html
-pub fn parse_skill_condition_types(html: &str) -> Vec<ConditionType> {
-    let document = Html::parse_document(html);
-    let cond_sel = Selector::parse("div[class*='conditionviewer_cond__']").unwrap();
-    let name_sel = Selector::parse("div[class*='conditionviewer_cond_name__'] b").unwrap();
-    let note_sel = Selector::parse("div[class*='conditionviewer_cond_optional__']").unwrap();
-    let example_sel = Selector::parse("div[class*='conditionviewer_cond_example__']").unwrap();
+fn parse_skill_condition_types(json: &str) -> ScraperResult<Vec<ConditionType>> {
+    let items: Vec<Value> = serde_json::from_str(json).map_err(|e| {
+        ScraperError::ParseError(format!("failed to parse skill conditions JSON: {e}"))
+    })?;
 
     let mut entries = Vec::new();
     let mut skipped = 0usize;
 
-    for cond in document.select(&cond_sel) {
-        let cond_key = match cond.select(&name_sel).next() {
-            Some(el) => el.text().collect::<String>().trim().to_string(),
-            None => {
+    for item in &items {
+        match parse_condition_item(item) {
+            Ok(entry) => entries.push(entry),
+            Err(e) => {
+                let name = item["name"].as_str().unwrap_or("unknown");
+                log::warn!("Failed to parse condition '{name}': {e}");
                 skipped += 1;
-                continue;
             }
-        };
-
-        let divs: Vec<_> = cond
-            .children()
-            .filter_map(|n| scraper::ElementRef::wrap(n))
-            .filter(|el| el.value().name() == "div")
-            .collect();
-
-        let description = parse_description(cond, &divs, &note_sel);
-        let example = cond
-            .select(&example_sel)
-            .next()
-            .map(|el| parse_example(el, &divs));
-
-        entries.push(ConditionType {
-            cond_key,
-            description,
-            example,
-        });
+        }
     }
 
-    log::info!(
-        "Condition type parsing complete: {} entries parsed, {} skipped",
+    info!(
+        "Condition type parsing complete: {} parsed, {} skipped out of {} total",
         entries.len(),
-        skipped
+        skipped,
+        items.len()
     );
 
-    entries
+    Ok(entries)
 }
 
-fn parse_description(cond: ElementRef, divs: &[ElementRef], note_sel: &Selector) -> String {
-    let description_parts: Vec<String> = divs
-        .iter()
-        .filter(|el| {
-            let class = el.value().attr("class").unwrap_or("");
-            !class.contains("cond_name")
-                && !class.contains("cond_example")
-                && !class.contains("cond_optional")
-        })
-        .map(|el| el.text().collect::<String>().trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    let note = cond.select(note_sel).next().map(|el| {
-        el.text()
-            .collect::<String>()
-            .replace("Note:", "")
-            .trim()
-            .to_string()
-    });
-
-    match note {
-        Some(n) => format!("{} {}", description_parts.join(" "), n),
-        None => description_parts.join(" "),
-    }
-}
-
-fn parse_example(example_el: ElementRef, divs: &[ElementRef]) -> String {
-    let example_text = example_el
-        .text()
-        .collect::<String>()
-        .replace("Example:", "")
-        .trim()
+fn parse_condition_item(item: &Value) -> ScraperResult<ConditionType> {
+    let cond_key = item["name"]
+        .as_str()
+        .ok_or_else(|| ScraperError::ParseError("missing name".into()))?
         .to_string();
 
-    let meaning = divs
-        .iter()
-        .skip_while(|d| d.html() != example_el.html())
-        .nth(1)
-        .map(|d| {
-            d.text()
-                .collect::<String>()
-                .replace("Meaning:", "")
-                .trim()
-                .to_string()
-        })
-        .unwrap_or_default();
+    let description = {
+        let desc = item["desc"].as_str().unwrap_or("").trim().to_string();
+        let note = item["note"].as_str().unwrap_or("").trim().to_string();
+        if note.is_empty() {
+            desc
+        } else {
+            format!("{desc} {note}")
+        }
+    };
 
-    format!("{} — {}", example_text, meaning)
+    let example = {
+        let example_text = item["example"].as_str().unwrap_or("").trim().to_string();
+        let example_meaning = item["example_meaning"]
+            .as_str()
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        if example_text.is_empty() {
+            None
+        } else if example_meaning.is_empty() {
+            Some(example_text)
+        } else {
+            Some(format!("{example_text} — {example_meaning}"))
+        }
+    };
+
+    Ok(ConditionType {
+        cond_key,
+        description,
+        example,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn wrap(inner: &str) -> String {
-        format!(
-            r#"<html><body><div class="conditionviewer_cond__LnQzc">{}</div></body></html>"#,
-            inner
-        )
+    fn valid_item() -> serde_json::Value {
+        serde_json::json!({
+            "name": "accumulatetime",
+            "desc": "The number of seconds since the race has started.",
+            "note": "",
+            "example": "accumulatetime>=5",
+            "example_meaning": "The race has been ongoing for at least 5 seconds.",
+            "values": ""
+        })
     }
 
     #[test]
-    fn test_parses_entry_without_note() {
-        let html = wrap(
-            r#"
-            <div class="conditionviewer_cond_name__WOrIu"><b>accumulatetime</b></div>
-            <div>The number of seconds since the race has started.</div>
-            <div class="conditionviewer_cond_example__NjOJr">
-                <span class="conditionviewer_label__pteXY">Example:</span> accumulatetime&gt;=5
-            </div>
-            <div>
-                <span class="conditionviewer_label__pteXY">Meaning:</span> The race has been ongoing for at least 5 seconds.
-            </div>
-        "#,
+    fn parses_valid_item() {
+        let entry = parse_condition_item(&valid_item()).unwrap();
+        assert_eq!(entry.cond_key, "accumulatetime");
+        assert_eq!(
+            entry.description,
+            "The number of seconds since the race has started."
         );
-
-        let results = parse_skill_condition_types(&html);
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].cond_key, "accumulatetime");
-        assert!(
-            results[0]
-                .description
-                .contains("The number of seconds since the race has started")
-        );
-        assert!(!results[0].description.contains("Note:"));
-        let example = results[0].example.as_ref().unwrap();
+        let example = entry.example.unwrap();
         assert!(example.contains("accumulatetime>=5"));
         assert!(example.contains("at least 5 seconds"));
     }
 
     #[test]
-    fn test_parses_entry_with_note() {
-        let html = wrap(
-            r#"
-            <div class="conditionviewer_cond_name__WOrIu"><b>all_corner_random</b></div>
-            <div>Picks a random point during any corner.</div>
-            <div class="conditionviewer_cond_optional__pY5QJ">
-                <span class="conditionviewer_label__pteXY">Note:</span> To be more precise, this condition randomly picks four points.
-            </div>
-            <div class="conditionviewer_cond_example__NjOJr">
-                <span class="conditionviewer_label__pteXY">Example:</span> all_corner_random==1
-            </div>
-            <div>
-                <span class="conditionviewer_label__pteXY">Meaning:</span> A random point on any corner is selected.
-            </div>
-        "#,
-        );
-
-        let results = parse_skill_condition_types(&html);
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].cond_key, "all_corner_random");
+    fn appends_note_to_description() {
+        let mut item = valid_item();
+        item["note"] = serde_json::json!("Some additional note.");
+        let entry = parse_condition_item(&item).unwrap();
         assert!(
-            results[0]
+            entry
                 .description
-                .contains("Picks a random point during any corner")
+                .contains("The number of seconds since the race has started.")
         );
-        assert!(
-            results[0]
-                .description
-                .contains("randomly picks four points")
-        );
-        let example = results[0].example.as_ref().unwrap();
-        assert!(example.contains("all_corner_random==1"));
-        assert!(example.contains("random point on any corner"));
+        assert!(entry.description.contains("Some additional note."));
     }
 
     #[test]
-    fn test_skips_entry_missing_key() {
-        let html = wrap(
-            r#"
-            <div class="conditionviewer_cond_name__WOrIu"></div>
-            <div>Some description.</div>
-            <div class="conditionviewer_cond_example__NjOJr">
-                <span class="conditionviewer_label__pteXY">Example:</span> something==1
-            </div>
-            <div>
-                <span class="conditionviewer_label__pteXY">Meaning:</span> Something.
-            </div>
-        "#,
-        );
-
-        let results = parse_skill_condition_types(&html);
-        assert_eq!(results.len(), 0);
+    fn example_is_none_when_empty() {
+        let mut item = valid_item();
+        item["example"] = serde_json::json!("");
+        let entry = parse_condition_item(&item).unwrap();
+        assert!(entry.example.is_none());
     }
 
     #[test]
-    fn test_parses_multiple_entries() {
-        let html = format!(
-            r#"<html><body>
-            <div class="conditionviewer_cond__LnQzc">
-                <div class="conditionviewer_cond_name__WOrIu"><b>accumulatetime</b></div>
-                <div>The number of seconds since the race has started.</div>
-                <div class="conditionviewer_cond_example__NjOJr"><span class="conditionviewer_label__pteXY">Example:</span> accumulatetime&gt;=5</div>
-                <div><span class="conditionviewer_label__pteXY">Meaning:</span> The race has been ongoing for at least 5 seconds.</div>
-            </div>
-            <div class="conditionviewer_cond__LnQzc">
-                <div class="conditionviewer_cond_name__WOrIu"><b>activate_count_all</b></div>
-                <div>The number of skills you have activated in the race.</div>
-                <div class="conditionviewer_cond_example__NjOJr"><span class="conditionviewer_label__pteXY">Example:</span> activate_count_all&gt;=7</div>
-                <div><span class="conditionviewer_label__pteXY">Meaning:</span> You have activated at least 7 skills so far.</div>
-            </div>
-            </body></html>"#
-        );
+    fn example_has_no_meaning_when_meaning_empty() {
+        let mut item = valid_item();
+        item["example_meaning"] = serde_json::json!("");
+        let entry = parse_condition_item(&item).unwrap();
+        assert_eq!(entry.example.unwrap(), "accumulatetime>=5");
+    }
 
-        let results = parse_skill_condition_types(&html);
-        assert_eq!(results.len(), 2);
-        assert_eq!(results[0].cond_key, "accumulatetime");
-        assert_eq!(results[1].cond_key, "activate_count_all");
+    #[test]
+    fn errors_on_missing_name() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("name");
+        let result = parse_condition_item(&item);
+        assert!(matches!(result, Err(ScraperError::ParseError(_))));
+    }
+
+    #[test]
+    fn roster_tolerates_bad_items() {
+        let bad_item = serde_json::json!({"desc": "no name here"});
+        let json = serde_json::json!([valid_item(), bad_item]).to_string();
+        let entries = parse_skill_condition_types(&json).unwrap();
+        assert_eq!(entries.len(), 1);
+    }
+
+    #[test]
+    fn parses_full_roster() {
+        let json = serde_json::json!([valid_item(), valid_item()]).to_string();
+        let entries = parse_skill_condition_types(&json).unwrap();
+        assert_eq!(entries.len(), 2);
     }
 }

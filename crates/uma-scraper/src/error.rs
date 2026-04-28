@@ -8,14 +8,29 @@ pub enum ScraperError {
     #[error("HTTP error {status}: {url}")]
     HttpError { status: u16, url: String },
 
+    #[error("Failed to deserialize JSON: {0}")]
+    JsonError(String),
+
     #[error("Rate limited: retry after {retry_after_secs}s")]
     RateLimited { retry_after_secs: u64 },
 
-    #[error("Failed to parse HTML: {0}")]
-    ParseError(String),
+    #[error("Missing field: {0}")]
+    MissingField(String),
 
-    #[error("Expected element not found: {0}")]
-    ElementNotFound(String),
+    #[error("Unknown value: {0}")]
+    UnknownValue(String),
+
+    #[error("Invalid data shape: {0}")]
+    InvalidShape(String),
+
+    #[error("Invalid condition: {0}")]
+    InvalidCondition(String),
+
+    #[error("Invalid date: {0}")]
+    InvalidDate(String),
+
+    #[error("Failed to parse: {0}")]
+    ParseError(String),
 
     #[error("Unexpected value encountered: {0}")]
     UnexpectedValue(String),

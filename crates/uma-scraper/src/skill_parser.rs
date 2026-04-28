@@ -1,417 +1,406 @@
-use log::{debug, info, warn};
-use scraper::{ElementRef, Html, Selector};
-use std::collections::HashMap;
+use crate::client::ScraperClient;
+use crate::error::{ScraperError, ScraperResult};
+use crate::icon_category::icon_id_to_category;
+use log::info;
+use serde_json::Value;
 use uma_core::{
     ids::SkillId,
-    models::skill::{Skill, SkillCategory, SkillRarity},
+    models::skill::{Condition, Effect, EffectType, Operator, Rarity, Skill},
 };
 
-/// Parses the skills table page from the umamusume wiki
-pub fn parse_skill_table(html: &str) -> Vec<Skill> {
-    let document = Html::parse_document(html);
+const SKILLS_URL: &str = "https://gametora.com/data/umamusume/skills.3b4d4239.json";
+
+pub async fn fetch_skill_roster(client: &ScraperClient) -> ScraperResult<Vec<Skill>> {
+    let json = client.fetch(SKILLS_URL).await?;
+    parse_skill_roster(&json)
+}
+
+fn parse_skill_roster(json: &str) -> ScraperResult<Vec<Skill>> {
+    let items: Vec<Value> = serde_json::from_str(json)
+        .map_err(|e| ScraperError::JsonError(format!("failed to parse skills JSON: {e}")))?;
+
     let mut skills = Vec::new();
-    let mut total_rows = 0;
-    let mut skip_reasons: HashMap<SkipReason, usize> = HashMap::new();
+    let mut skip_reasons: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
 
-    let rarity_sections = [
-        ("Common_Skills", SkillRarity::Normal),
-        ("Rare_Skills", SkillRarity::Rare),
-        ("Unique_Skills", SkillRarity::Unique),
-    ];
-
-    for (heading_id, rarity) in rarity_sections {
-        if let Some(table) = find_table_after_heading(&document, heading_id) {
-            let row_sel = Selector::parse("tbody tr").unwrap();
-            for row in table.select(&row_sel) {
-                total_rows += 1;
-                match parse_skill_row(&row, rarity) {
-                    ParseRowResult::Parsed(skill) => skills.push(skill),
-                    ParseRowResult::Skipped(reason) => {
-                        *skip_reasons.entry(reason).or_insert(0) += 1;
-                    }
-                }
+    for item in &items {
+        match parse_skill_item(item) {
+            Ok(skill) => skills.push(skill),
+            Err(e) => {
+                let id = item["id"].as_u64().unwrap_or(0);
+                let reason = match &e {
+                    ScraperError::MissingField(_) => "Missing field",
+                    ScraperError::UnknownValue(_) => "Unknown value",
+                    ScraperError::InvalidCondition(_) => "Invalid condition",
+                    ScraperError::InvalidDate(_) => "Invalid date",
+                    ScraperError::JsonError(_) => "JSON deserialization error",
+                    _ => "Other",
+                };
+                log::warn!("Failed to parse skill id {id}: {e}");
+                *skip_reasons.entry(reason).or_insert(0) += 1;
             }
-        } else {
-            warn!("Section '{heading_id}' not found in page");
         }
     }
 
-    let total_skipped: usize = skip_reasons.values().sum();
-
     info!(
-        "Parsing complete: {} skills parsed, {} skipped out of {} total rows",
+        "Skill roster parsing complete: {} parsed, {} skipped out of {} total",
         skills.len(),
-        total_skipped,
-        total_rows
+        skip_reasons.values().sum::<usize>(),
+        items.len()
     );
 
     if !skip_reasons.is_empty() {
-        info!("Skip reasons:");
-        for (reason, count) in &skip_reasons {
-            info!("  {}: {count}", reason.as_str());
+        info!("Skip breakdown:");
+        let mut reasons: Vec<_> = skip_reasons.iter().collect();
+        reasons.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
+        for (reason, count) in reasons {
+            info!("  *{reason}: {count}");
         }
     }
 
-    skills
+    Ok(skills)
 }
 
-enum ParseRowResult {
-    Parsed(Skill),
-    Skipped(SkipReason),
-}
+fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
+    let id = item["id"]
+        .as_u64()
+        .ok_or_else(|| ScraperError::MissingField("id".into()))
+        .map(|n| SkillId(n as u32))?;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum SkipReason {
-    NoIconCell,
-    NoIconId,
-    NoNameCell,
-    JpOnly,
-    NoName,
-    NoSkillId,
-    NoDescription,
-    NoSpCost,
-    NoEvalPoints,
-    UnknownIcon,
-}
+    let rarity = parse_rarity(&item["rarity"], id)?;
+    let is_evo = matches!(rarity, Rarity::Evolution);
 
-impl SkipReason {
-    fn as_str(&self) -> &'static str {
-        match self {
-            SkipReason::NoIconCell => "no icon cell",
-            SkipReason::NoIconId => "could not extract icon_id",
-            SkipReason::NoNameCell => "no name cell",
-            SkipReason::JpOnly => "JP-only skill",
-            SkipReason::NoName => "could not extract name",
-            SkipReason::NoSkillId => "could not extract skill_id",
-            SkipReason::NoDescription => "no description cell",
-            SkipReason::NoSpCost => "could not parse sp_cost",
-            SkipReason::NoEvalPoints => "could not parse eval_points",
-            SkipReason::UnknownIcon => "unknown icon_id",
+    let name = match item["name_en"].as_str() {
+        Some(n) => n.to_string(),
+        None if is_evo => item["enname"]
+            .as_str()
+            .ok_or_else(|| ScraperError::MissingField(format!("enname for evo skill {}", id.0)))?
+            .to_string(),
+        None => {
+            return Err(ScraperError::MissingField(format!(
+                "name_en for skill {}",
+                id.0
+            )));
         }
-    }
-}
+    };
 
-fn find_table_after_heading<'a>(document: &'a Html, heading_id: &str) -> Option<ElementRef<'a>> {
-    let span_sel = Selector::parse(&format!("span#{}", heading_id)).unwrap();
-    let table_sel = Selector::parse("table").unwrap();
+    let ingame_description = item["desc_en"].as_str().unwrap_or("").to_string();
 
-    let heading_span = document.select(&span_sel).next()?;
-    let heading_node_id = heading_span.parent()?.id();
+    let icon_id = item["iconid"]
+        .as_u64()
+        .ok_or_else(|| ScraperError::MissingField(format!("iconid for skill {}", id.0)))?
+        as u32;
 
-    document
-        .select(&table_sel)
-        .find(|table| table.id() > heading_node_id)
-}
+    let category = icon_id_to_category(icon_id).ok_or_else(|| {
+        ScraperError::UnknownValue(format!("iconid {icon_id} for skill {}", id.0))
+    })?;
 
-fn parse_skill_row(row: &ElementRef, rarity: SkillRarity) -> ParseRowResult {
-    macro_rules! try_or_skip {
-        ($expr:expr, $reason:expr) => {
-            match $expr {
-                Some(v) => v,
-                None => {
-                    debug!("Skipping row: {}", $reason.as_str());
-                    return ParseRowResult::Skipped($reason);
-                }
-            }
-        };
-    }
+    let sp_cost = item["cost"].as_u64().unwrap_or(0) as u32;
+    let effects = parse_effects(item, id)?;
 
-    let td_sel = Selector::parse("td").unwrap();
-    let mut tds = row.select(&td_sel);
-
-    let icon_td = try_or_skip!(tds.next(), SkipReason::NoIconCell);
-    let icon_id = try_or_skip!(extract_icon_id(&icon_td), SkipReason::NoIconId);
-    let name_td = try_or_skip!(tds.next(), SkipReason::NoNameCell);
-
-    if name_td
-        .select(&Selector::parse("sup").unwrap())
-        .next()
-        .is_some()
-    {
-        debug!("Skipping row: JP-only skill");
-        return ParseRowResult::Skipped(SkipReason::JpOnly);
-    }
-
-    let name = try_or_skip!(
-        name_td
-            .select(&Selector::parse("b a").unwrap())
-            .next()
-            .map(|a| a.text().collect::<String>()),
-        SkipReason::NoName
-    );
-    let id: SkillId = try_or_skip!(extract_skill_id(&name_td), SkipReason::NoSkillId);
-    let description = try_or_skip!(
-        tds.next()
-            .map(|td| td.text().collect::<String>().trim().to_string()),
-        SkipReason::NoDescription
-    );
-    let sp_cost = try_or_skip!(
-        tds.next()
-            .and_then(|td| td.text().collect::<String>().trim().parse::<u32>().ok()),
-        SkipReason::NoSpCost
-    );
-    let eval_points = try_or_skip!(
-        tds.next()
-            .and_then(|td| td.text().collect::<String>().trim().parse::<u32>().ok()),
-        SkipReason::NoEvalPoints
-    );
-    let category = try_or_skip!(icon_id_to_category(icon_id), SkipReason::UnknownIcon);
-
-    debug!("Parsed skill '{name}' (id={id:?}, rarity={rarity:?}, category={category:?})");
-
-    ParseRowResult::Parsed(Skill {
+    Ok(Skill {
         id,
         name,
-        ingame_description: description,
+        ingame_description,
         category,
         rarity,
         sp_cost,
-        eval_points,
+        effects,
     })
 }
 
-fn extract_icon_id(td: &ElementRef) -> Option<u32> {
-    let img_sel = Selector::parse("img").unwrap();
-    let src = td.select(&img_sel).next()?.value().attr("src")?;
-    // src looks like: /w/thumb.php?f=Game_Skill_Icon_20013.png&width=48
-    let filename = src
-        .split('?')
-        .nth(1)?
-        .split('&')
-        .find(|s| s.starts_with("f="))?
-        .trim_start_matches("f=Game_Skill_Icon_")
-        .trim_end_matches(".png");
-    filename.parse().ok()
-}
-
-fn extract_skill_id(td: &ElementRef) -> Option<SkillId> {
-    let a_sel = Selector::parse("b a").unwrap();
-    let href = td.select(&a_sel).next()?.value().attr("href")?;
-    // href looks like: /Game:Skills/200011
-    href.split('/').last()?.parse::<u32>().ok().map(SkillId)
-}
-
-fn icon_id_to_category(icon_id: u32) -> Option<SkillCategory> {
-    let category = match icon_id {
-        10011 => SkillCategory::Green, // Speed
-        10012 => SkillCategory::Green, // Gold Speed
-        10021 => SkillCategory::Green, // Stamina
-        10022 => SkillCategory::Green, // Gold Stamina
-        10031 => SkillCategory::Green, // Power
-        10032 => SkillCategory::Green, // Gold Power
-        10041 => SkillCategory::Green, // Guts
-        10051 => SkillCategory::Green, // Wit
-        10052 => SkillCategory::Green, // Gold Wit
-        10061 => SkillCategory::Green, // Lucky seven
-        10062 => SkillCategory::Green, // Super lucky seven
-        40012 => SkillCategory::Green, // Runaway
-        20021 => SkillCategory::Recovery,
-        20022 => SkillCategory::Recovery,
-        20023 => SkillCategory::Recovery,
-        20011 => SkillCategory::Velocity,
-        20012 => SkillCategory::Velocity,
-        20013 => SkillCategory::Velocity,
-        20041 => SkillCategory::Acceleration,
-        20042 => SkillCategory::Acceleration,
-        20043 => SkillCategory::Acceleration,
-        20051 => SkillCategory::Movement,
-        20052 => SkillCategory::Movement,
-        20061 => SkillCategory::Gate,
-        20062 => SkillCategory::Gate,
-        20091 => SkillCategory::Vision,
-        20092 => SkillCategory::Vision,
-        30011 => SkillCategory::SpeedDebuff,
-        30012 => SkillCategory::SpeedDebuff,
-        30021 => SkillCategory::AccelDebuff,
-        30022 => SkillCategory::AccelDebuff,
-        30041 => SkillCategory::FrenzyDebuff,
-        30051 => SkillCategory::StaminaDrain,
-        30052 => SkillCategory::StaminaDrain,
-        30071 => SkillCategory::VisionDebuff,
-        30072 => SkillCategory::VisionDebuff,
-        10014 => SkillCategory::Purple,     // Speed
-        10024 => SkillCategory::Purple,     // Stamina
-        10034 => SkillCategory::Purple,     // Power
-        10044 => SkillCategory::Purple,     // Guts
-        10054 => SkillCategory::Purple,     // Wit
-        20064 => SkillCategory::Purple,     // Gate
-        20014 => SkillCategory::Purple,     // Velocity
-        20015 => SkillCategory::Purple,     // Gold Velocity
-        20044 => SkillCategory::Purple,     // Accel
-        20045 => SkillCategory::Purple,     // Gold Accel
-        20024 => SkillCategory::Purple,     // Recovery
-        20101 => SkillCategory::Scenario,   // Ignited SPD
-        20102 => SkillCategory::Scenario,   // Burning SPD
-        20121 => SkillCategory::Scenario,   // Ignited PWR
-        20122 => SkillCategory::Scenario,   // Burning PWR
-        20111 => SkillCategory::Scenario,   // Ignited STA
-        20112 => SkillCategory::Scenario,   // Burning STA
-        20131 => SkillCategory::Scenario,   // Ignited WIT
-        20132 => SkillCategory::Scenario,   // Burning WIT
-        20141 => SkillCategory::Scenario,   // Glittering Star
-        20142 => SkillCategory::Scenario,   // Radiant Star
-        2010010 => SkillCategory::Velocity, // Best in Japan
-        other => {
-            warn!("Unknown icon_id: {other}, skill will be skipped");
-            return None;
-        }
+fn parse_effects(item: &Value, skill_id: SkillId) -> ScraperResult<Vec<Effect>> {
+    let Some(groups) = item["condition_groups"].as_array() else {
+        return Ok(Vec::new());
     };
-    debug!("Mapped icon_id {icon_id} to {category:?}");
-    Some(category)
+
+    groups
+        .iter()
+        .map(|cg| parse_effect_group(cg, skill_id))
+        .collect()
+}
+
+fn parse_effect_group(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
+    let effects = cg["effects"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| {
+            let type_id = e["type"].as_u64()?;
+            let value = e["value"].as_i64().unwrap_or(0);
+            EffectType::from_raw(type_id, value)
+        })
+        .collect();
+
+    let conditions = parse_condition_string(cg["condition"].as_str().unwrap_or(""), skill_id)?;
+    let preconditions =
+        parse_condition_string(cg["precondition"].as_str().unwrap_or(""), skill_id)?;
+
+    Ok(Effect {
+        effects,
+        conditions,
+        preconditions,
+    })
+}
+
+fn parse_rarity(value: &Value, id: SkillId) -> ScraperResult<Rarity> {
+    match value.as_u64() {
+        Some(1) => Ok(Rarity::Normal),
+        Some(2) => Ok(Rarity::Rare),
+        Some(3) => Ok(Rarity::Rare),
+        Some(4) => Ok(Rarity::Unique),
+        Some(5) => Ok(Rarity::Unique),
+        Some(6) => Ok(Rarity::Evolution),
+        _ => Err(ScraperError::UnknownValue(format!(
+            "rarity value {} for skill {}",
+            value, id.0
+        ))),
+    }
+}
+
+fn parse_condition_string(s: &str, skill_id: SkillId) -> ScraperResult<Vec<Condition>> {
+    if s.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut conditions = Vec::new();
+
+    for (or_idx, or_group) in s.split('@').enumerate() {
+        for (and_idx, part) in or_group.split('&').enumerate() {
+            let (cond_key, operator, cond_val) = parse_condition_part(part).ok_or_else(|| {
+                ScraperError::InvalidCondition(format!("'{part}' in skill {}", skill_id.0))
+            })?;
+
+            let is_or = or_idx > 0 && and_idx == 0;
+
+            conditions.push(Condition {
+                cond_key,
+                operator,
+                cond_val,
+                is_or,
+            });
+        }
+    }
+
+    Ok(conditions)
+}
+
+fn parse_condition_part(s: &str) -> Option<(String, Operator, String)> {
+    let operators = [
+        (">=", Operator::GtEq),
+        ("<=", Operator::LtEq),
+        ("!=", Operator::NotEq),
+        ("==", Operator::Eq),
+        (">", Operator::Gt),
+        ("<", Operator::Lt),
+    ];
+
+    for (sym, op) in operators {
+        if let Some(pos) = s.find(sym) {
+            let key = s[..pos].trim().to_string();
+            let val = s[pos + sym.len()..].trim().to_string();
+            if !key.is_empty() && !val.is_empty() {
+                return Some((key, op, val));
+            }
+        }
+    }
+
+    None
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
-    use uma_core::ids::SkillId;
-
-    use crate::skill_parser::parse_skill_table;
-
-    // Minimal HTML that mirrors the real wiki structure:
-    // - A heading with the expected span id
-    // - A table after it with one valid skill row
-    fn make_page(section_id: &str, icon_id: u32, skill_id: u32) -> String {
-        format!(
-            r#"
-            <h2><span id="{section_id}"></span></h2>
-            <table>
-              <tbody>
-                <tr>
-                  <td>
-                    <img src="/w/thumb.php?f=Game_Skill_Icon_{icon_id}.png&width=48"/>
-                  </td>
-                  <td>
-                    <b><a href="/Game:Skills/{skill_id}">Speed Boost</a></b>
-                  </td>
-                  <td>Increases speed for a short time.</td>
-                  <td>150</td>
-                  <td>120</td>
-                </tr>
-              </tbody>
-            </table>
-            "#
-        )
+    fn valid_item() -> serde_json::Value {
+        serde_json::json!({
+            "id": 10071,
+            "name_en": "Warning Shot!",
+            "desc_en": "Slightly increase velocity with a long spurt starting halfway through the race.",
+            "rarity": 3,
+            "iconid": 20013,
+            "cost": 200,
+            "condition_groups": [
+                {
+                    "effects": [
+                        {"type": 27, "value": 4500},
+                        {"type": 31, "value": 2000}
+                    ],
+                    "condition": "distance_rate>=50&order_rate>50",
+                    "precondition": "phase>=2"
+                }
+            ]
+        })
     }
 
     #[test]
-    fn parses_skill_name_and_id() {
-        let html = make_page("Common_Skills", 20013, 200011);
-        let skills = parse_skill_table(&html);
-        assert_eq!(skills.len(), 1);
-        assert_eq!(skills[0].name, "Speed Boost");
-        assert_eq!(skills[0].id, SkillId(200011));
-    }
-
-    #[test]
-    fn parses_sp_cost_and_eval_points() {
-        let html = make_page("Common_Skills", 20013, 200011);
-        let skills = parse_skill_table(&html);
-        assert_eq!(skills[0].sp_cost, 150);
-        assert_eq!(skills[0].eval_points, 120);
-    }
-
-    #[test]
-    fn parses_ingame_description() {
-        let html = make_page("Common_Skills", 20013, 200011);
-        let skills = parse_skill_table(&html);
+    fn parses_valid_skill() {
+        let skill = parse_skill_item(&valid_item()).unwrap();
+        assert_eq!(skill.id, SkillId(10071));
+        assert_eq!(skill.name, "Warning Shot!");
         assert_eq!(
-            skills[0].ingame_description,
-            "Increases speed for a short time."
+            skill.ingame_description,
+            "Slightly increase velocity with a long spurt starting halfway through the race."
         );
+        assert!(matches!(skill.rarity, Rarity::Rare));
+        assert_eq!(skill.sp_cost, 200);
     }
 
     #[test]
-    fn skips_row_missing_icon_img() {
-        let html = r#"
-            <h2><span id="Common_Skills"></span></h2>
-            <table>
-              <tbody>
-                <tr>
-                  <td><!-- no img here --></td>
-                  <td><b><a href="/Game:Skills/200011">Speed Boost</a></b></td>
-                  <td>Increases speed for a short time.</td>
-                  <td>150</td>
-                  <td>120</td>
-                </tr>
-              </tbody>
-            </table>
-        "#;
-        let skills = parse_skill_table(html);
-        assert!(skills.is_empty());
+    fn parses_effects() {
+        let skill = parse_skill_item(&valid_item()).unwrap();
+        assert_eq!(skill.effects.len(), 1);
+        let effect = &skill.effects[0];
+        assert_eq!(effect.effects.len(), 2);
+        assert!(matches!(effect.effects[0], EffectType::TargetSpeedUp(_)));
+        assert!(matches!(effect.effects[1], EffectType::AccelerationUp(_)));
     }
 
     #[test]
-    fn skips_row_with_non_numeric_sp_cost() {
-        let html = r#"
-            <h2><span id="Common_Skills"></span></h2>
-            <table>
-              <tbody>
-                <tr>
-                  <td><img src="/w/thumb.php?f=Game_Skill_Icon_20013.png&width=48"/></td>
-                  <td><b><a href="/Game:Skills/200011">Speed Boost</a></b></td>
-                  <td>Increases speed for a short time.</td>
-                  <td>???</td>
-                  <td>120</td>
-                </tr>
-              </tbody>
-            </table>
-        "#;
-        let skills = parse_skill_table(html);
-        assert!(skills.is_empty());
+    fn parses_conditions() {
+        let skill = parse_skill_item(&valid_item()).unwrap();
+        let conditions = &skill.effects[0].conditions;
+        assert_eq!(conditions.len(), 2);
+        assert_eq!(conditions[0].cond_key, "distance_rate");
+        assert!(matches!(conditions[0].operator, Operator::GtEq));
+        assert_eq!(conditions[0].cond_val, "50");
+        assert!(!conditions[0].is_or);
+        assert_eq!(conditions[1].cond_key, "order_rate");
+        assert!(matches!(conditions[1].operator, Operator::Gt));
+        assert_eq!(conditions[1].cond_val, "50");
+        assert!(!conditions[1].is_or);
     }
 
     #[test]
-    fn ignores_table_before_heading() {
-        // A table that comes BEFORE the heading span should not be picked up
-        let html = r#"
-            <table>
-              <tbody>
-                <tr>
-                  <td><img src="/w/thumb.php?f=Game_Skill_Icon_20013.png&width=48"/></td>
-                  <td><b><a href="/Game:Skills/200011">Speed Boost</a></b></td>
-                  <td>Increases speed for a short time.</td>
-                  <td>150</td>
-                  <td>120</td>
-                </tr>
-              </tbody>
-            </table>
-            <h2><span id="Common_Skills"></span></h2>
-        "#;
-        let skills = parse_skill_table(html);
-        assert!(skills.is_empty());
+    fn parses_preconditions() {
+        let skill = parse_skill_item(&valid_item()).unwrap();
+        let preconditions = &skill.effects[0].preconditions;
+        assert_eq!(preconditions.len(), 1);
+        assert_eq!(preconditions[0].cond_key, "phase");
+        assert!(matches!(preconditions[0].operator, Operator::GtEq));
+        assert_eq!(preconditions[0].cond_val, "2");
     }
 
     #[test]
-    fn parses_multiple_rarity_sections() {
-        let html = r#"
-            <h2><span id="Common_Skills"></span></h2>
-            <table>
-              <tbody>
-                <tr>
-                  <td><img src="/w/thumb.php?f=Game_Skill_Icon_20013.png&width=48"/></td>
-                  <td><b><a href="/Game:Skills/200011">Speed Boost</a></b></td>
-                  <td>Increases speed.</td>
-                  <td>150</td>
-                  <td>120</td>
-                </tr>
-              </tbody>
-            </table>
-            <h2><span id="Rare_Skills"></span></h2>
-            <table>
-              <tbody>
-                <tr>
-                  <td><img src="/w/thumb.php?f=Game_Skill_Icon_30021.png&width=48"/></td>
-                  <td><b><a href="/Game:Skills/300042">Burst</a></b></td>
-                  <td>Greatly increases speed.</td>
-                  <td>200</td>
-                  <td>250</td>
-                </tr>
-              </tbody>
-            </table>
-        "#;
-        let skills = parse_skill_table(html);
+    fn parses_or_conditions() {
+        let mut item = valid_item();
+        item["condition_groups"][0]["condition"] =
+            serde_json::json!("distance_rate>=50&order<=3@distance_rate>=50&order_rate<=50");
+        let skill = parse_skill_item(&item).unwrap();
+        let conditions = &skill.effects[0].conditions;
+        assert_eq!(conditions.len(), 4);
+        assert!(!conditions[0].is_or);
+        assert!(!conditions[1].is_or);
+        assert!(conditions[2].is_or);
+        assert!(!conditions[3].is_or);
+    }
+
+    #[test]
+    fn skips_unknown_effect_types() {
+        let mut item = valid_item();
+        item["condition_groups"][0]["effects"] = serde_json::json!([
+            {"type": 27, "value": 4500},
+            {"type": 9999, "value": 100}
+        ]);
+        let skill = parse_skill_item(&item).unwrap();
+        assert_eq!(skill.effects[0].effects.len(), 1);
+    }
+
+    #[test]
+    fn handles_empty_condition_groups() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("condition_groups");
+        let skill = parse_skill_item(&item).unwrap();
+        assert!(skill.effects.is_empty());
+    }
+
+    #[test]
+    fn handles_empty_conditions() {
+        let mut item = valid_item();
+        item["condition_groups"][0]["condition"] = serde_json::json!("");
+        item["condition_groups"][0]["precondition"] = serde_json::json!("");
+        let skill = parse_skill_item(&item).unwrap();
+        assert!(skill.effects[0].conditions.is_empty());
+        assert!(skill.effects[0].preconditions.is_empty());
+    }
+
+    #[test]
+    fn defaults_sp_cost_to_zero_when_absent() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("cost");
+        let skill = parse_skill_item(&item).unwrap();
+        assert_eq!(skill.sp_cost, 0);
+    }
+
+    #[test]
+    fn defaults_desc_en_to_empty_when_absent() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("desc_en");
+        let skill = parse_skill_item(&item).unwrap();
+        assert_eq!(skill.ingame_description, "");
+    }
+
+    #[test]
+    fn errors_on_missing_id() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("id");
+        assert!(matches!(
+            parse_skill_item(&item),
+            Err(ScraperError::MissingField(_))
+        ));
+    }
+
+    #[test]
+    fn errors_on_missing_name() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("name_en");
+        assert!(matches!(
+            parse_skill_item(&item),
+            Err(ScraperError::MissingField(_))
+        ));
+    }
+
+    #[test]
+    fn errors_on_invalid_rarity() {
+        let mut item = valid_item();
+        item["rarity"] = serde_json::json!(99);
+        assert!(matches!(
+            parse_skill_item(&item),
+            Err(ScraperError::UnknownValue(_))
+        ));
+    }
+
+    #[test]
+    fn errors_on_unknown_iconid() {
+        let mut item = valid_item();
+        item["iconid"] = serde_json::json!(99999);
+        assert!(matches!(
+            parse_skill_item(&item),
+            Err(ScraperError::UnknownValue(_))
+        ));
+    }
+
+    #[test]
+    fn errors_on_malformed_condition() {
+        let mut item = valid_item();
+        item["condition_groups"][0]["condition"] = serde_json::json!("notacondition");
+        assert!(matches!(
+            parse_skill_item(&item),
+            Err(ScraperError::InvalidCondition(_))
+        ));
+    }
+
+    #[test]
+    fn parses_full_roster() {
+        let json = serde_json::json!([valid_item(), valid_item()]).to_string();
+        let skills = parse_skill_roster(&json).unwrap();
         assert_eq!(skills.len(), 2);
-        assert_eq!(skills[0].name, "Speed Boost");
-        assert_eq!(skills[1].name, "Burst");
+    }
+
+    #[test]
+    fn roster_tolerates_bad_items() {
+        let bad_item = serde_json::json!({"id": 99999, "rarity": 99});
+        let json = serde_json::json!([valid_item(), bad_item]).to_string();
+        let skills = parse_skill_roster(&json).unwrap();
+        assert_eq!(skills.len(), 1);
     }
 }

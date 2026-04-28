@@ -1,41 +1,52 @@
 use crate::types::{DbSkillCategory, DbSkillOperator, DbSkillRarity};
 use sqlx::PgPool;
-use uma_core::{
-    ids::SkillId,
-    models::skill::{Skill, SkillEffect},
-};
+use uma_core::models::skill::{ConditionType, Skill};
 
-pub async fn upsert_all_skills(
+pub async fn upsert_all_condition_types(
     pool: &PgPool,
-    skills: &[(Skill, Vec<SkillEffect>)],
+    conditions: &[ConditionType],
 ) -> Result<(), sqlx::Error> {
-    let mut cond_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for (_, effects) in skills {
-        for effect in effects {
-            for condition in &effect.conditions {
-                cond_keys.insert(condition.cond_key.clone());
-            }
-        }
+    for condition in conditions {
+        sqlx::query!(
+            r#"
+            INSERT INTO skill_condition_types (cond_key, description, example)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (cond_key) DO UPDATE SET
+                description = EXCLUDED.description,
+                example = EXCLUDED.example
+            "#,
+            condition.cond_key,
+            condition.description,
+            condition.example,
+        )
+        .execute(pool)
+        .await?;
     }
 
-    let cond_key_map = upsert_condition_types(pool, cond_keys).await?;
+    Ok(())
+}
 
+pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sqlx::Error> {
     let mut success = 0;
-    let mut failed = 0;
+    let mut fail_reasons: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
 
-    for (skill, effects) in skills {
-        match upsert_skill_full(pool, skill, effects, &cond_key_map).await {
+    for skill in skills {
+        match upsert_skill(pool, skill).await {
             Ok(_) => success += 1,
             Err(e) => {
+                let reason = e.to_string();
                 log::warn!(
-                    "Failed to upsert skill {} (id: {}): {e}",
+                    "Failed to upsert skill {} (id: {}): {reason}",
                     skill.name,
                     skill.id.0
                 );
-                failed += 1;
+                *fail_reasons.entry(reason).or_insert(0) += 1;
             }
         }
     }
+
+    let failed = fail_reasons.values().sum::<usize>();
 
     log::info!(
         "Skill upsert complete: {} succeeded, {} failed out of {} total",
@@ -44,76 +55,29 @@ pub async fn upsert_all_skills(
         skills.len()
     );
 
-    Ok(())
-}
-
-pub async fn upsert_all_skill_details(
-    pool: &PgPool,
-    pairs: &[(SkillId, Vec<SkillEffect>)],
-) -> Result<(), sqlx::Error> {
-    let mut cond_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for (_, effects) in pairs {
-        for effect in effects {
-            for condition in &effect.conditions {
-                cond_keys.insert(condition.cond_key.clone());
-            }
+    if !fail_reasons.is_empty() {
+        log::info!("Failure breakdown:");
+        let mut reasons: Vec<_> = fail_reasons.iter().collect();
+        reasons.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
+        for (reason, count) in reasons {
+            log::info!("  {count}x {reason}");
         }
     }
 
-    let cond_key_map = upsert_condition_types(pool, cond_keys).await?;
-
-    let mut success = 0;
-    let mut failed = 0;
-
-    for (skill_id, effects) in pairs {
-        match upsert_skill_effects(pool, *skill_id, effects, &cond_key_map).await {
-            Ok(_) => success += 1,
-            Err(e) => {
-                log::warn!("Failed to upsert details for skill {}: {e}", skill_id.0);
-                failed += 1;
-            }
-        }
-    }
-
-    log::info!(
-        "Skill detail upsert complete: {} succeeded, {} failed out of {} total",
-        success,
-        failed,
-        pairs.len()
-    );
-
     Ok(())
 }
 
-pub async fn upsert_skill_full(
-    pool: &PgPool,
-    skill: &Skill,
-    effects: &[SkillEffect],
-    cond_key_map: &std::collections::HashMap<String, i32>,
-) -> Result<(), sqlx::Error> {
-    upsert_skill(pool, skill).await?;
-    upsert_skill_effects(pool, skill.id, effects, cond_key_map).await?;
-    log::info!(
-        "Upserted skill {} (id: {}, effects: {})",
-        skill.name,
-        skill.id.0,
-        effects.len()
-    );
-    Ok(())
-}
-
-pub async fn upsert_skill(pool: &PgPool, skill: &Skill) -> Result<(), sqlx::Error> {
+async fn upsert_skill(pool: &PgPool, skill: &Skill) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO skills (id, name, description, category, rarity, sp_cost, eval_points)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO skills (id, name, ingame_description, category, rarity, sp_cost)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
-            description = EXCLUDED.description,
+            ingame_description = EXCLUDED.ingame_description,
             category = EXCLUDED.category,
             rarity = EXCLUDED.rarity,
-            sp_cost = EXCLUDED.sp_cost,
-            eval_points = EXCLUDED.eval_points
+            sp_cost = EXCLUDED.sp_cost
         "#,
         skill.id.0 as i32,
         skill.name,
@@ -121,93 +85,74 @@ pub async fn upsert_skill(pool: &PgPool, skill: &Skill) -> Result<(), sqlx::Erro
         DbSkillCategory::from(skill.category) as DbSkillCategory,
         DbSkillRarity::from(skill.rarity) as DbSkillRarity,
         skill.sp_cost as i32,
-        skill.eval_points as i32,
     )
     .execute(pool)
     .await?;
 
-    Ok(())
-}
+    // Delete existing triggers so we can re-insert cleanly
+    sqlx::query!(
+        "DELETE FROM skill_triggers WHERE skill_id = $1",
+        skill.id.0 as i32
+    )
+    .execute(pool)
+    .await?;
 
-pub async fn get_all_skill_ids(pool: &PgPool) -> Result<Vec<SkillId>, sqlx::Error> {
-    let ids = sqlx::query!("SELECT id FROM skills")
-        .fetch_all(pool)
-        .await?
-        .into_iter()
-        .map(|r| SkillId(r.id as u32))
-        .collect();
-    Ok(ids)
-}
-
-async fn upsert_condition_types(
-    pool: &PgPool,
-    cond_keys: std::collections::HashSet<String>,
-) -> Result<std::collections::HashMap<String, i32>, sqlx::Error> {
-    let mut cond_key_map: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
-    for cond_key in cond_keys {
-        let id = sqlx::query!(
+    for trigger in &skill.effects {
+        let trigger_id = sqlx::query!(
             r#"
-            INSERT INTO skill_condition_types (cond_key)
+            INSERT INTO skill_triggers (skill_id)
             VALUES ($1)
-            ON CONFLICT (cond_key) DO UPDATE SET cond_key = skill_condition_types.cond_key
             RETURNING id
             "#,
-            cond_key,
+            skill.id.0 as i32,
         )
         .fetch_one(pool)
         .await?
         .id;
 
-        cond_key_map.insert(cond_key, id);
-    }
-    Ok(cond_key_map)
-}
-
-async fn upsert_skill_effects(
-    pool: &PgPool,
-    skill_id: SkillId,
-    effects: &[SkillEffect],
-    cond_key_map: &std::collections::HashMap<String, i32>,
-) -> Result<(), sqlx::Error> {
-    for effect in effects {
-        let effect_id = sqlx::query!(
-            r#"
-            INSERT INTO skill_effects (skill_id)
-            VALUES ($1)
-            RETURNING id
-            "#,
-            skill_id.0 as i32,
-        )
-        .fetch_one(pool)
-        .await?
-        .id;
-
-        for stat in &effect.stats {
+        for effect_type in &trigger.effects {
             sqlx::query!(
                 r#"
-                INSERT INTO skill_effect_stats (effect_id, stat_key, stat_val)
+                INSERT INTO skill_trigger_effects (trigger_id, effect_type, effect_value)
                 VALUES ($1, $2, $3)
                 "#,
-                effect_id,
-                stat.stat_key,
-                stat.stat_val,
+                trigger_id,
+                effect_type.type_name(),
+                effect_type.value(),
             )
             .execute(pool)
             .await?;
         }
 
-        for condition in &effect.conditions {
-            let condition_type_id = cond_key_map[&condition.cond_key];
+        for condition in &trigger.conditions {
             sqlx::query!(
                 r#"
-                INSERT INTO skill_conditions (effect_id, condition_type_id, is_precondition, operator, cond_val)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO skill_trigger_conditions
+                    (trigger_id, cond_key, operator, cond_val, is_precondition, is_or)
+                VALUES ($1, $2, $3, $4, false, $5)
                 "#,
-                effect_id,
-                condition_type_id,
-                condition.is_precondition,
+                trigger_id,
+                condition.cond_key,
                 DbSkillOperator::from(condition.operator) as DbSkillOperator,
                 condition.cond_val,
+                condition.is_or,
+            )
+            .execute(pool)
+            .await?;
+        }
+
+        for condition in &trigger.preconditions {
+            sqlx::query!(
+                r#"
+                INSERT INTO skill_trigger_conditions
+                    (trigger_id, cond_key, operator, cond_val, is_precondition, is_or)
+                VALUES ($1, $2, $3, $4, true, $5)
+                "#,
+                trigger_id,
+                condition.cond_key,
+                DbSkillOperator::from(condition.operator) as DbSkillOperator,
+                condition.cond_val,
+                condition.is_or,
             )
             .execute(pool)
             .await?;

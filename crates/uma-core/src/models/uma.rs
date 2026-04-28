@@ -7,7 +7,7 @@ pub struct Uma {
     pub id: UmaId,
     pub name: String,
     pub subtitle: String,
-    pub rarity: UmaRarity,
+    pub rarity: Rarity,
     pub base_stats: BaseStats,
     pub growth_rates: GrowthRates,
     pub aptitudes: Aptitudes,
@@ -15,13 +15,13 @@ pub struct Uma {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum UmaRarity {
+pub enum Rarity {
     R,
     SR,
     SSR,
 }
 
-impl Display for UmaRarity {
+impl Display for Rarity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::R => write!(f, "⭐"),
