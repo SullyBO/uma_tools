@@ -4,7 +4,7 @@ members = [
     "crates/uma-cli", 
     "crates/uma-scraper",
     "crates/uma-db",
-    # "crates/uma-api",     when ready
+    "crates/uma-api",
 ]
 resolver = "2"
 
