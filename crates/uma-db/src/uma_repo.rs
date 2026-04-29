@@ -21,16 +21,46 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
     let growth_powers: Vec<i32> = umas.iter().map(|u| u.growth_rates.power as i32).collect();
     let growth_guts: Vec<i32> = umas.iter().map(|u| u.growth_rates.guts as i32).collect();
     let growth_wits: Vec<i32> = umas.iter().map(|u| u.growth_rates.wit as i32).collect();
-    let apt_turfs: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.surface.turf)).collect();
-    let apt_dirts: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.surface.dirt)).collect();
-    let apt_shorts: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.short)).collect();
-    let apt_miles: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.mile)).collect();
-    let apt_mediums: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.medium)).collect();
-    let apt_longs: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.long)).collect();
-    let apt_fronts: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.front)).collect();
-    let apt_paces: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.pace)).collect();
-    let apt_lates: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.late)).collect();
-    let apt_ends: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.end)).collect();
+    let apt_turfs: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.surface.turf))
+        .collect();
+    let apt_dirts: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.surface.dirt))
+        .collect();
+    let apt_shorts: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.distance.short))
+        .collect();
+    let apt_miles: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.distance.mile))
+        .collect();
+    let apt_mediums: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.distance.medium))
+        .collect();
+    let apt_longs: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.distance.long))
+        .collect();
+    let apt_fronts: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.front))
+        .collect();
+    let apt_paces: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.pace))
+        .collect();
+    let apt_lates: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.late))
+        .collect();
+    let apt_ends: Vec<DbAptitudeLevel> = umas
+        .iter()
+        .map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.end))
+        .collect();
 
     sqlx::query!(
         r#"
@@ -103,38 +133,31 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
     .execute(pool)
     .await?;
 
-    sqlx::query!(
-        "DELETE FROM uma_skills WHERE uma_id = ANY($1::int[])",
-        &ids
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query!("DELETE FROM uma_skills WHERE uma_id = ANY($1::int[])", &ids)
+        .execute(pool)
+        .await?;
 
     let mut uma_ids: Vec<i32> = Vec::new();
     let mut skill_ids: Vec<i32> = Vec::new();
     let mut acquisitions: Vec<DbSkillAcquisition> = Vec::new();
     let mut evolved_froms: Vec<Option<i32>> = Vec::new();
 
-    let mut seen = std::collections::HashSet::new();
     for uma in umas {
         for skill in &uma.skill_list {
-            if seen.insert((uma.id.0, skill.id.0)) {
-                uma_ids.push(uma.id.0 as i32);
-                skill_ids.push(skill.id.0 as i32);
-                acquisitions.push(DbSkillAcquisition::from(skill.acquisition));
-                evolved_froms.push(skill.acquisition.evolved_from().map(|id| id.0 as i32));
-            }
+            uma_ids.push(uma.id.0 as i32);
+            skill_ids.push(skill.id.0 as i32);
+            acquisitions.push(DbSkillAcquisition::from(skill.acquisition));
+            evolved_froms.push(skill.acquisition.evolved_from().map(|id| id.0 as i32));
         }
     }
 
     if !uma_ids.is_empty() {
         let result = sqlx::query!(
             r#"
-            INSERT INTO uma_skills (uma_id, skill_id, acquisition, evolved_from)
-            SELECT * FROM UNNEST($1::int[], $2::int[], $3::skill_acquisition[], $4::int[])
-            ON CONFLICT (uma_id, skill_id) DO UPDATE SET
-                acquisition = EXCLUDED.acquisition,
-                evolved_from = EXCLUDED.evolved_from
+INSERT INTO uma_skills (uma_id, skill_id, acquisition, evolved_from)
+SELECT * FROM UNNEST($1::int[], $2::int[], $3::skill_acquisition[], $4::int[])
+ON CONFLICT (uma_id, skill_id, acquisition) DO UPDATE SET
+    evolved_from = EXCLUDED.evolved_from
             "#,
             &uma_ids,
             &skill_ids,
@@ -144,7 +167,10 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
         .execute(pool)
         .await?;
 
-        log::info!("uma_skills insert: {} rows affected", result.rows_affected());
+        log::info!(
+            "uma_skills insert: {} rows affected",
+            result.rows_affected()
+        );
     }
 
     log::info!(

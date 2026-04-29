@@ -50,7 +50,8 @@ fn parse_skill_roster(json: &str) -> ScraperResult<Vec<Skill>> {
     info!("Skill roster parsing complete:");
     info!("{} global skills parsed", skills.len() - jp_only_count);
     info!("{} JP-only skills parsed", jp_only_count);
-    info!("{} skipped skills out of {} total",
+    info!(
+        "{} skipped skills out of {} total",
         skip_reasons.values().sum::<usize>(),
         items.len()
     );
