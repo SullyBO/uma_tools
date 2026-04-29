@@ -3,60 +3,35 @@ use sqlx::PgPool;
 use uma_core::models::uma::Uma;
 
 pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Error> {
-    let mut success = 0;
-    let mut fail_reasons: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
-
-    for uma in umas {
-        match upsert_uma_full(pool, uma).await {
-            Ok(_) => success += 1,
-            Err(e) => {
-                let reason = e.to_string();
-                log::warn!(
-                    "Failed to upsert uma {} (id: {}): {reason}",
-                    uma.name,
-                    uma.id.0
-                );
-                *fail_reasons.entry(reason).or_insert(0) += 1;
-            }
-        }
+    if umas.is_empty() {
+        return Ok(());
     }
 
-    let failed = fail_reasons.values().sum::<usize>();
+    let ids: Vec<i32> = umas.iter().map(|u| u.id.0 as i32).collect();
+    let names: Vec<&str> = umas.iter().map(|u| u.name.as_str()).collect();
+    let subtitles: Vec<&str> = umas.iter().map(|u| u.subtitle.as_str()).collect();
+    let rarities: Vec<DbUmaRarity> = umas.iter().map(|u| DbUmaRarity::from(u.rarity)).collect();
+    let stat_speeds: Vec<i32> = umas.iter().map(|u| u.base_stats.speed as i32).collect();
+    let stat_staminas: Vec<i32> = umas.iter().map(|u| u.base_stats.stamina as i32).collect();
+    let stat_powers: Vec<i32> = umas.iter().map(|u| u.base_stats.power as i32).collect();
+    let stat_guts: Vec<i32> = umas.iter().map(|u| u.base_stats.guts as i32).collect();
+    let stat_wits: Vec<i32> = umas.iter().map(|u| u.base_stats.wit as i32).collect();
+    let growth_speeds: Vec<i32> = umas.iter().map(|u| u.growth_rates.speed as i32).collect();
+    let growth_staminas: Vec<i32> = umas.iter().map(|u| u.growth_rates.stamina as i32).collect();
+    let growth_powers: Vec<i32> = umas.iter().map(|u| u.growth_rates.power as i32).collect();
+    let growth_guts: Vec<i32> = umas.iter().map(|u| u.growth_rates.guts as i32).collect();
+    let growth_wits: Vec<i32> = umas.iter().map(|u| u.growth_rates.wit as i32).collect();
+    let apt_turfs: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.surface.turf)).collect();
+    let apt_dirts: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.surface.dirt)).collect();
+    let apt_shorts: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.short)).collect();
+    let apt_miles: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.mile)).collect();
+    let apt_mediums: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.medium)).collect();
+    let apt_longs: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.distance.long)).collect();
+    let apt_fronts: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.front)).collect();
+    let apt_paces: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.pace)).collect();
+    let apt_lates: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.late)).collect();
+    let apt_ends: Vec<DbAptitudeLevel> = umas.iter().map(|u| DbAptitudeLevel::from(u.aptitudes.strategy.end)).collect();
 
-    log::info!(
-        "Uma upsert complete: {} succeeded, {} failed out of {} total",
-        success,
-        failed,
-        umas.len()
-    );
-
-    if !fail_reasons.is_empty() {
-        log::info!("Failure breakdown:");
-        let mut reasons: Vec<_> = fail_reasons.iter().collect();
-        reasons.sort_by_key(|(_, count)| std::cmp::Reverse(**count));
-        for (reason, count) in reasons {
-            log::info!("  {count}x {reason}");
-        }
-    }
-
-    Ok(())
-}
-
-async fn upsert_uma_full(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
-    upsert_uma(pool, uma).await?;
-    upsert_uma_skills(pool, uma).await?;
-    log::info!(
-        "Upserted uma {} {} (id: {}, skills: {})",
-        uma.rarity,
-        uma.name,
-        uma.id.0,
-        uma.skill_list.len()
-    );
-    Ok(())
-}
-
-async fn upsert_uma(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO umas (
@@ -66,13 +41,14 @@ async fn upsert_uma(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
             apt_turf, apt_dirt,
             apt_short, apt_mile, apt_medium, apt_long,
             apt_front, apt_pace, apt_late, apt_end
-        ) VALUES (
-            $1, $2, $3, $4,
-            $5, $6, $7, $8, $9,
-            $10, $11, $12, $13, $14,
-            $15, $16,
-            $17, $18, $19, $20,
-            $21, $22, $23, $24
+        )
+        SELECT * FROM UNNEST(
+            $1::int[], $2::text[], $3::text[], $4::uma_rarity[],
+            $5::int[], $6::int[], $7::int[], $8::int[], $9::int[],
+            $10::int[], $11::int[], $12::int[], $13::int[], $14::int[],
+            $15::aptitude_level[], $16::aptitude_level[],
+            $17::aptitude_level[], $18::aptitude_level[], $19::aptitude_level[], $20::aptitude_level[],
+            $21::aptitude_level[], $22::aptitude_level[], $23::aptitude_level[], $24::aptitude_level[]
         )
         ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
@@ -99,57 +75,83 @@ async fn upsert_uma(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
             apt_late = EXCLUDED.apt_late,
             apt_end = EXCLUDED.apt_end
         "#,
-        uma.id.0 as i32,
-        uma.name,
-        uma.subtitle,
-        DbUmaRarity::from(uma.rarity) as DbUmaRarity,
-        uma.base_stats.speed as i32,
-        uma.base_stats.stamina as i32,
-        uma.base_stats.power as i32,
-        uma.base_stats.guts as i32,
-        uma.base_stats.wit as i32,
-        uma.growth_rates.speed as i32,
-        uma.growth_rates.stamina as i32,
-        uma.growth_rates.power as i32,
-        uma.growth_rates.guts as i32,
-        uma.growth_rates.wit as i32,
-        DbAptitudeLevel::from(uma.aptitudes.surface.turf) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.surface.dirt) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.distance.short) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.distance.mile) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.distance.medium) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.distance.long) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.strategy.front) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.strategy.pace) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.strategy.late) as DbAptitudeLevel,
-        DbAptitudeLevel::from(uma.aptitudes.strategy.end) as DbAptitudeLevel,
+        &ids,
+        &names as &[&str],
+        &subtitles as &[&str],
+        &rarities as &[DbUmaRarity],
+        &stat_speeds,
+        &stat_staminas,
+        &stat_powers,
+        &stat_guts,
+        &stat_wits,
+        &growth_speeds,
+        &growth_staminas,
+        &growth_powers,
+        &growth_guts,
+        &growth_wits,
+        &apt_turfs as &[DbAptitudeLevel],
+        &apt_dirts as &[DbAptitudeLevel],
+        &apt_shorts as &[DbAptitudeLevel],
+        &apt_miles as &[DbAptitudeLevel],
+        &apt_mediums as &[DbAptitudeLevel],
+        &apt_longs as &[DbAptitudeLevel],
+        &apt_fronts as &[DbAptitudeLevel],
+        &apt_paces as &[DbAptitudeLevel],
+        &apt_lates as &[DbAptitudeLevel],
+        &apt_ends as &[DbAptitudeLevel],
     )
     .execute(pool)
     .await?;
 
-    Ok(())
-}
+    sqlx::query!(
+        "DELETE FROM uma_skills WHERE uma_id = ANY($1::int[])",
+        &ids
+    )
+    .execute(pool)
+    .await?;
 
-async fn upsert_uma_skills(pool: &PgPool, uma: &Uma) -> Result<(), sqlx::Error> {
-    for skill in &uma.skill_list {
-        let evolved_from = skill.acquisition.evolved_from().map(|id| id.0 as i32);
+    let mut uma_ids: Vec<i32> = Vec::new();
+    let mut skill_ids: Vec<i32> = Vec::new();
+    let mut acquisitions: Vec<DbSkillAcquisition> = Vec::new();
+    let mut evolved_froms: Vec<Option<i32>> = Vec::new();
 
-        sqlx::query!(
+    let mut seen = std::collections::HashSet::new();
+    for uma in umas {
+        for skill in &uma.skill_list {
+            if seen.insert((uma.id.0, skill.id.0)) {
+                uma_ids.push(uma.id.0 as i32);
+                skill_ids.push(skill.id.0 as i32);
+                acquisitions.push(DbSkillAcquisition::from(skill.acquisition));
+                evolved_froms.push(skill.acquisition.evolved_from().map(|id| id.0 as i32));
+            }
+        }
+    }
+
+    if !uma_ids.is_empty() {
+        let result = sqlx::query!(
             r#"
             INSERT INTO uma_skills (uma_id, skill_id, acquisition, evolved_from)
-            VALUES ($1, $2, $3, $4)
+            SELECT * FROM UNNEST($1::int[], $2::int[], $3::skill_acquisition[], $4::int[])
             ON CONFLICT (uma_id, skill_id) DO UPDATE SET
                 acquisition = EXCLUDED.acquisition,
                 evolved_from = EXCLUDED.evolved_from
             "#,
-            uma.id.0 as i32,
-            skill.id.0 as i32,
-            DbSkillAcquisition::from(skill.acquisition) as DbSkillAcquisition,
-            evolved_from,
+            &uma_ids,
+            &skill_ids,
+            &acquisitions as &[DbSkillAcquisition],
+            &evolved_froms as &[Option<i32>],
         )
         .execute(pool)
         .await?;
+
+        log::info!("uma_skills insert: {} rows affected", result.rows_affected());
     }
+
+    log::info!(
+        "Uma upsert complete: {} umas, {} skills",
+        umas.len(),
+        uma_ids.len(),
+    );
 
     Ok(())
 }

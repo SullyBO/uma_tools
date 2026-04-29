@@ -21,7 +21,7 @@ fn parse_skill_roster(json: &str) -> ScraperResult<Vec<Skill>> {
 
     let mut skills = Vec::new();
     let mut skip_reasons: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-    let mut jp_only_count= 0usize;
+    let mut jp_only_count = 0usize;
 
     for item in &items {
         match parse_skill_item(item) {
@@ -47,13 +47,10 @@ fn parse_skill_roster(json: &str) -> ScraperResult<Vec<Skill>> {
         }
     }
 
-    info!(
-        "Skill roster parsing complete: 
-            {} global skills parsed
-            {} JP-only skills parsed
-            {} skipped skills out of {} total",
-        skills.len() - jp_only_count,
-        jp_only_count,
+    info!("Skill roster parsing complete:");
+    info!("{} global skills parsed", skills.len() - jp_only_count);
+    info!("{} JP-only skills parsed", jp_only_count);
+    info!("{} skipped skills out of {} total",
         skip_reasons.values().sum::<usize>(),
         items.len()
     );

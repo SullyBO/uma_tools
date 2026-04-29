@@ -15,7 +15,9 @@ pub async fn sync_skills(db: &database) {
         }
     };
 
-    let _ = db.upsert_all_skills(&skills).await; // errors logged internally
+    if let Err(e) = db.upsert_all_skills(&skills).await {
+        log::error!("Failed to upsert all skills: {e}");
+    }
 }
 
 pub async fn sync_uma(db: &database) {
@@ -29,7 +31,9 @@ pub async fn sync_uma(db: &database) {
         }
     };
 
-    let _ = db.upsert_all_uma(&umas).await; // errors logged internally
+    if let Err(e) = db.upsert_all_uma(&umas).await {
+        log::error!("Failed to upsert all uma: {e}");
+    }
 }
 
 pub async fn sync_conditions(db: &database) {
