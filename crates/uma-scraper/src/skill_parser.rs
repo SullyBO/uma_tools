@@ -21,10 +21,16 @@ fn parse_skill_roster(json: &str) -> ScraperResult<Vec<Skill>> {
 
     let mut skills = Vec::new();
     let mut skip_reasons: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    let mut jp_only_count= 0usize;
 
     for item in &items {
         match parse_skill_item(item) {
-            Ok(skill) => skills.push(skill),
+            Ok(skill) => {
+                if skill.is_jp_only {
+                    jp_only_count += 1;
+                }
+                skills.push(skill);
+            }
             Err(e) => {
                 let id = item["id"].as_u64().unwrap_or(0);
                 let reason = match &e {
@@ -42,8 +48,12 @@ fn parse_skill_roster(json: &str) -> ScraperResult<Vec<Skill>> {
     }
 
     info!(
-        "Skill roster parsing complete: {} parsed, {} skipped out of {} total",
-        skills.len(),
+        "Skill roster parsing complete: 
+            {} global skills parsed
+            {} JP-only skills parsed
+            {} skipped skills out of {} total",
+        skills.len() - jp_only_count,
+        jp_only_count,
         skip_reasons.values().sum::<usize>(),
         items.len()
     );
@@ -67,19 +77,15 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
         .map(|n| SkillId(n as u32))?;
 
     let rarity = parse_rarity(&item["rarity"], id)?;
-    let is_evo = matches!(rarity, Rarity::Evolution);
 
-    let name = match item["name_en"].as_str() {
-        Some(n) => n.to_string(),
-        None if is_evo => item["enname"]
-            .as_str()
-            .ok_or_else(|| ScraperError::MissingField(format!("enname for evo skill {}", id.0)))?
-            .to_string(),
+    let (name, is_jp_only) = match item["name_en"].as_str() {
+        Some(n) => (n.to_string(), false),
         None => {
-            return Err(ScraperError::MissingField(format!(
-                "name_en for skill {}",
-                id.0
-            )));
+            let name = item["enname"]
+                .as_str()
+                .ok_or_else(|| ScraperError::MissingField(format!("enname for skill {}", id.0)))?
+                .to_string();
+            (name, true)
         }
     };
 
@@ -105,6 +111,7 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
         rarity,
         sp_cost,
         effects,
+        is_jp_only,
     })
 }
 

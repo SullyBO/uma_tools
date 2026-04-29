@@ -8,6 +8,7 @@ pub struct Skill {
     pub rarity: Rarity,
     pub sp_cost: u32,
     pub effects: Vec<Effect>,
+    pub is_jp_only: bool,
 }
 
 #[derive(Debug, Copy, Clone)]

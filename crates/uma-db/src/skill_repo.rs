@@ -70,14 +70,15 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
 async fn upsert_skill(pool: &PgPool, skill: &Skill) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO skills (id, name, ingame_description, category, rarity, sp_cost)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO skills (id, name, ingame_description, category, rarity, sp_cost, is_jp_only)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
             ingame_description = EXCLUDED.ingame_description,
             category = EXCLUDED.category,
             rarity = EXCLUDED.rarity,
-            sp_cost = EXCLUDED.sp_cost
+            sp_cost = EXCLUDED.sp_cost,
+            is_jp_only = EXCLUDED.is_jp_only
         "#,
         skill.id.0 as i32,
         skill.name,
@@ -85,11 +86,11 @@ async fn upsert_skill(pool: &PgPool, skill: &Skill) -> Result<(), sqlx::Error> {
         DbSkillCategory::from(skill.category) as DbSkillCategory,
         DbSkillRarity::from(skill.rarity) as DbSkillRarity,
         skill.sp_cost as i32,
+        skill.is_jp_only as bool,
     )
     .execute(pool)
     .await?;
 
-    // Delete existing triggers so we can re-insert cleanly
     sqlx::query!(
         "DELETE FROM skill_triggers WHERE skill_id = $1",
         skill.id.0 as i32
