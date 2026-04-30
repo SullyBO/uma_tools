@@ -4,14 +4,14 @@
 
 A data pipeline and API backend for an Umamusume: Pretty Derby discord bot.
 
-Scrapes the [Umamusume wiki](https://umamusume.wiki) and [GameTora](https://gametora.com) on a monthly cadence, seeds a PostgreSQL database, and exposes the data for consumption by a Discord bot (separate project).
+Scrapes [GameTora](https://gametora.com) on a monthly cadence, seeds a PostgreSQL database, and exposes the data for consumption by a Discord bot (separate project.)
 
 ## Workspace Structure
 
 ```
 uma/
 ├── uma-core/       # Shared domain models and types
-├── uma-scraper/    # Web scrapers (wiki + GameTora)
+├── uma-scraper/    # Web scrapers (GameTora)
 ├── uma-db/         # Repository layer (SQLx + PostgreSQL)
 ├── uma-api/        # HTTP API server
 └── uma-cli/        # CLI entrypoint
