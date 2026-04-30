@@ -1,8 +1,6 @@
 use crate::error::{ScraperError, ScraperResult};
 use reqwest::Client;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Semaphore;
 use tokio::time::sleep;
 
 const DEFAULT_MAX_CONCURRENCY: usize = 5;
@@ -12,7 +10,6 @@ const DEFAULT_BACKOFF_BASE: Duration = Duration::from_secs(1);
 
 pub struct ScraperClient {
     client: Client,
-    semaphore: Arc<Semaphore>,
     min_delay: Duration,
     max_retries: u32,
     backoff_base: Duration,
@@ -58,7 +55,6 @@ impl ScraperClientBuilder {
     pub fn build(self) -> ScraperClient {
         ScraperClient {
             client: Client::new(),
-            semaphore: Arc::new(Semaphore::new(self.max_concurrency)),
             min_delay: self.min_delay,
             max_retries: self.max_retries,
             backoff_base: self.backoff_base,
@@ -77,30 +73,8 @@ impl ScraperClient {
         ScraperClientBuilder::new()
     }
 
-    /// Fetch a single page, with retries. Intended for one-off pages like the skills wiki.
     pub async fn fetch(&self, url: &str) -> ScraperResult<String> {
         self.fetch_with_retries(url).await
-    }
-
-    /// Fetch many pages concurrently, respecting the concurrency limit and rate limits.
-    /// Failures are captured per-URL rather than aborting the whole batch.
-    pub async fn fetch_all(&self, urls: &[impl AsRef<str>]) -> Vec<ScraperResult<String>> {
-        let semaphore = self.semaphore.clone();
-
-        let tasks: Vec<_> = urls
-            .iter()
-            .map(|url| {
-                let sem = semaphore.clone();
-                let url = url.as_ref().to_string();
-                async move {
-                    // Acquiring the permit gates concurrency across all tasks
-                    let _permit = sem.acquire().await.expect("semaphore closed");
-                    self.fetch_with_retries(&url).await
-                }
-            })
-            .collect();
-
-        futures::future::join_all(tasks).await
     }
 
     async fn fetch_with_retries(&self, url: &str) -> ScraperResult<String> {
@@ -268,33 +242,5 @@ mod tests {
         assert_eq!(result.unwrap(), "ok");
         // 429 should not have consumed a retry attempt — only 2 requests total
         assert_eq!(server.received_requests().await.unwrap().len(), 2);
-    }
-
-    #[tokio::test]
-    async fn fetch_all_captures_failures_without_aborting() {
-        let server = MockServer::start().await;
-
-        Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
-            .up_to_n_times(1)
-            .mount(&server)
-            .await;
-
-        Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(500))
-            .mount(&server)
-            .await;
-
-        let urls = vec![server.uri(), server.uri()];
-        let url_refs: Vec<&str> = urls.iter().map(String::as_str).collect();
-
-        let results = test_client().fetch_all(&url_refs).await;
-
-        assert_eq!(results.len(), 2);
-
-        let successes = results.iter().filter(|r| r.is_ok()).count();
-        let failures = results.iter().filter(|r| r.is_err()).count();
-        assert_eq!(successes, 1);
-        assert_eq!(failures, 1);
     }
 }
