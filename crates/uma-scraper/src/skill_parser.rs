@@ -3,6 +3,7 @@ use crate::error::{ScraperError, ScraperResult};
 use crate::icon_category::icon_id_to_category;
 use log::info;
 use serde_json::Value;
+use std::collections::HashMap;
 use uma_core::{
     ids::SkillId,
     models::skill::{Condition, Effect, EffectType, Operator, Rarity, Skill},
@@ -20,7 +21,7 @@ fn parse_skill_roster(json: &str) -> ScraperResult<Vec<Skill>> {
         .map_err(|e| ScraperError::JsonError(format!("failed to parse skills JSON: {e}")))?;
 
     let mut skills = Vec::new();
-    let mut skip_reasons: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    let mut skip_reasons: HashMap<&str, usize> = HashMap::new();
     let mut jp_only_count = 0usize;
 
     for item in &items {
@@ -131,8 +132,36 @@ fn parse_effect_group(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
         .flatten()
         .filter_map(|e| {
             let type_id = e["type"].as_u64()?;
-            let value = e["value"].as_i64().unwrap_or(0);
-            EffectType::from_raw(type_id, value)
+            let raw = e["value"].as_f64().unwrap_or(0.0);
+            let scale = |divisor: f64| (raw / divisor) as f32;
+
+            match type_id {
+                1  => Some(EffectType::SpeedUp(scale(10000.0))),
+                2  => Some(EffectType::StaminaUp(scale(10000.0))),
+                3  => Some(EffectType::PowerUp(scale(10000.0))),
+                4  => Some(EffectType::GutsUp(scale(10000.0))),
+                5  => Some(EffectType::WitUp(scale(10000.0))),
+                6  => Some(EffectType::RunawaySkill),
+                8  => Some(EffectType::FieldOfViewUp(scale(10000.0))),
+                9  => Some(EffectType::StaminaRecovery(scale(1000.0))),
+                10 => Some(EffectType::StartReactionImprovement(scale(10000.0))),
+                13 => Some(EffectType::RushTimeIncrease(scale(10000.0))),
+                14 => Some(EffectType::StartDelayAdded(scale(10000.0))),
+                21 => Some(EffectType::CurrentSpeedDown(scale(10000.0))),
+                22 => Some(EffectType::CurrentSpeedUp(scale(10000.0))),
+                27 => Some(EffectType::TargetSpeedUp(scale(10000.0))),
+                28 => Some(EffectType::LaneChangeSpeed(scale(1000.0))),
+                29 => Some(EffectType::RushChanceDecrease(scale(10000.0))),
+                31 => Some(EffectType::AccelerationUp(scale(10000.0))),
+                32 => Some(EffectType::AllStatsUp(scale(10000.0))),
+                35 => Some(EffectType::ChangeLane(scale(100.0))),
+                37 => Some(EffectType::UseRandomRareSkills(scale(10000.0))),
+                38 => Some(EffectType::DebuffImmunity),
+                41 => Some(EffectType::ActivateRelatedSkillsOnAllUma),
+                42 => Some(EffectType::EvolvedSkillDurationUp(scale(1000.0))),
+                48 => Some(EffectType::ZenkaiSpurtAcceleration(scale(10000.0))),
+                _  => None,
+            }
         })
         .collect();
 

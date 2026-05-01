@@ -109,7 +109,7 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
 
     let mut effect_trigger_ids: Vec<i32> = Vec::new();
     let mut effect_types: Vec<&str> = Vec::new();
-    let mut effect_values: Vec<Option<i32>> = Vec::new();
+    let mut effect_values: Vec<Option<f32>> = Vec::new();
 
     let mut cond_trigger_ids: Vec<i32> = Vec::new();
     let mut cond_keys: Vec<&str> = Vec::new();
@@ -152,11 +152,11 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
         sqlx::query!(
             r#"
             INSERT INTO skill_trigger_effects (trigger_id, effect_type, effect_value)
-            SELECT * FROM UNNEST($1::int[], $2::text[], $3::int[])
+            SELECT * FROM UNNEST($1::int[], $2::text[], $3::real[])
             "#,
             &effect_trigger_ids,
             &effect_types as &[&str],
-            &effect_values as &[Option<i32>],
+            &effect_values as &[Option<f32>],
         )
         .execute(pool)
         .await?;

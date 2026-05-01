@@ -74,66 +74,33 @@ pub struct ConditionType {
 
 #[derive(Debug, Clone)]
 pub enum EffectType {
-    SpeedUp(i32),
-    StaminaUp(i32),
-    PowerUp(i32),
-    GutsUp(i32),
-    WitUp(i32),
-    AllStatsUp(i32),
-    CurrentSpeedUp(i32),
-    CurrentSpeedDown(i32),
-    TargetSpeedUp(i32),
-    ZenkaiSpurtAcceleration(i32),
-    AccelerationUp(i32),
-    StaminaRecovery(i32),
-    FieldOfViewUp(i32),
-    LaneChangeSpeed(i32),
-    ChangeLane(i32),
-    StartReactionImprovement(i32),
-    StartDelayAdded(i32),
-    RushTimeIncrease(i32),
-    RushChanceDecrease(i32),
+    SpeedUp(f32),
+    StaminaUp(f32),
+    PowerUp(f32),
+    GutsUp(f32),
+    WitUp(f32),
+    AllStatsUp(f32),
+    CurrentSpeedUp(f32),
+    CurrentSpeedDown(f32),
+    TargetSpeedUp(f32),
+    ZenkaiSpurtAcceleration(f32),
+    AccelerationUp(f32),
+    StaminaRecovery(f32),
+    FieldOfViewUp(f32),
+    LaneChangeSpeed(f32),
+    ChangeLane(f32),
+    StartReactionImprovement(f32),
+    StartDelayAdded(f32),
+    RushTimeIncrease(f32),
+    RushChanceDecrease(f32),
     RunawaySkill,
     DebuffImmunity,
     ActivateRelatedSkillsOnAllUma,
-    UseRandomRareSkills(i32),
-    EvolvedSkillDurationUp(i32),
+    UseRandomRareSkills(f32),
+    EvolvedSkillDurationUp(f32),
 }
 
 impl EffectType {
-    /// Construct from raw JSON type id and raw value, normalized to base 10000.
-    pub fn from_raw(type_id: u64, raw_value: i64) -> Option<Self> {
-        let v10 = |divisor: i64| (raw_value * 10000 / divisor) as i32;
-
-        match type_id {
-            1 => Some(Self::SpeedUp(v10(1000))),
-            2 => Some(Self::StaminaUp(v10(1000))),
-            3 => Some(Self::PowerUp(v10(1000))),
-            4 => Some(Self::GutsUp(v10(1000))),
-            5 => Some(Self::WitUp(v10(1000))),
-            6 => Some(Self::RunawaySkill),
-            8 => Some(Self::FieldOfViewUp(v10(1000))),
-            9 => Some(Self::StaminaRecovery(v10(1000))),
-            10 => Some(Self::StartReactionImprovement(v10(10000))),
-            13 => Some(Self::RushTimeIncrease(v10(10000))),
-            14 => Some(Self::StartDelayAdded(v10(10000))),
-            21 => Some(Self::CurrentSpeedDown(v10(10000))),
-            22 => Some(Self::CurrentSpeedUp(v10(10000))),
-            27 => Some(Self::TargetSpeedUp(v10(10000))),
-            28 => Some(Self::LaneChangeSpeed(v10(1000))),
-            29 => Some(Self::RushChanceDecrease(v10(10000))),
-            31 => Some(Self::AccelerationUp(v10(1000))),
-            32 => Some(Self::AllStatsUp(v10(10000))),
-            35 => Some(Self::ChangeLane(v10(100))),
-            37 => Some(Self::UseRandomRareSkills(v10(10000))),
-            38 => Some(Self::DebuffImmunity),
-            41 => Some(Self::ActivateRelatedSkillsOnAllUma),
-            42 => Some(Self::EvolvedSkillDurationUp(v10(1000))),
-            48 => Some(Self::ZenkaiSpurtAcceleration(v10(10000))),
-            _ => None,
-        }
-    }
-
     pub fn type_name(&self) -> &'static str {
         match self {
             Self::SpeedUp(_) => "Speed Up",
@@ -163,7 +130,7 @@ impl EffectType {
         }
     }
 
-    pub fn value(&self) -> Option<i32> {
+    pub fn value(&self) -> Option<f32> {
         match self {
             Self::RunawaySkill | Self::DebuffImmunity | Self::ActivateRelatedSkillsOnAllUma => None,
             Self::SpeedUp(v)
@@ -193,16 +160,8 @@ impl EffectType {
 
 impl std::fmt::Display for EffectType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn fmt_val(v: i32) -> String {
-            if v % 10000 == 0 {
-                format!("{}", v / 10000)
-            } else if v % 1000 == 0 {
-                format!("{:.1}", v as f64 / 10000.0)
-            } else if v % 100 == 0 {
-                format!("{:.2}", v as f64 / 10000.0)
-            } else {
-                format!("{:.4}", v as f64 / 10000.0)
-            }
+        fn fmt_val(v: f32) -> String {
+            format!("{v:.3}")
         }
 
         match self {

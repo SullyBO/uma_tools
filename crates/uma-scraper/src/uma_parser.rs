@@ -3,6 +3,7 @@ use crate::error::{ScraperError, ScraperResult};
 use chrono::{DateTime, Utc};
 use log::info;
 use serde_json::Value;
+use std::collections::HashMap;
 use uma_core::{
     ids::{SkillId, UmaId},
     models::uma::{
@@ -28,10 +29,10 @@ fn parse_uma_roster(json: &str) -> ScraperResult<Vec<Uma>> {
 
     let mut umas = Vec::new();
     let mut skipped_jp = 0usize;
-    let mut skip_reasons: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    let mut skip_reasons: HashMap<&str, usize> = HashMap::new();
 
     for item in &items {
-        match parse_uma_item(item, now) {
+        match parse_uma(item, now) {
             Ok(Some(uma)) => umas.push(uma),
             Ok(None) => skipped_jp += 1,
             Err(e) => {
@@ -39,7 +40,6 @@ fn parse_uma_roster(json: &str) -> ScraperResult<Vec<Uma>> {
                 let reason = match &e {
                     ScraperError::MissingField(_) => "Missing field",
                     ScraperError::UnknownValue(_) => "Unknown value",
-                    ScraperError::InvalidCondition(_) => "Invalid condition",
                     ScraperError::InvalidDate(_) => "Invalid date",
                     ScraperError::InvalidShape(_) => "Invalid shape",
                     ScraperError::JsonError(_) => "JSON deserialization error",
@@ -73,7 +73,7 @@ fn parse_uma_roster(json: &str) -> ScraperResult<Vec<Uma>> {
     Ok(umas)
 }
 
-fn parse_uma_item(item: &Value, now: DateTime<Utc>) -> ScraperResult<Option<Uma>> {
+fn parse_uma(item: &Value, now: DateTime<Utc>) -> ScraperResult<Option<Uma>> {
     let release_en = item["release_en"].as_str();
 
     match release_en {
@@ -111,7 +111,7 @@ fn parse_uma_item(item: &Value, now: DateTime<Utc>) -> ScraperResult<Option<Uma>
     let base_stats = parse_base_stats(&item["base_stats"])?;
     let growth_rates = parse_growth_rates(&item["stat_bonus"])?;
     let aptitudes = parse_aptitudes(&item["aptitude"])?;
-    let skill_list = parse_skills(item)?;
+    let skill_list = parse_uma_skills(item)?;
 
     let uma = Uma {
         id,
@@ -234,7 +234,7 @@ fn parse_aptitudes(value: &Value) -> ScraperResult<Aptitudes> {
     })
 }
 
-fn parse_skills(item: &Value) -> ScraperResult<Vec<UmaSkill>> {
+fn parse_uma_skills(item: &Value) -> ScraperResult<Vec<UmaSkill>> {
     let mut skills = Vec::new();
 
     let flat_categories = [
@@ -309,7 +309,7 @@ mod tests {
         let now = DateTime::parse_from_rfc3339("2026-01-01T00:00:00+00:00")
             .unwrap()
             .with_timezone(&Utc);
-        let uma = parse_uma_item(&valid_item(), now).unwrap().unwrap();
+        let uma = parse_uma(&valid_item(), now).unwrap().unwrap();
 
         assert_eq!(uma.id, UmaId(102001));
         assert_eq!(uma.name, "Seiun Sky");
@@ -339,7 +339,7 @@ mod tests {
         let mut item = valid_item();
         item.as_object_mut().unwrap().remove("release_en");
         let now = Utc::now();
-        let result = parse_uma_item(&item, now).unwrap();
+        let result = parse_uma(&item, now).unwrap();
         assert!(result.is_none());
     }
 
@@ -348,7 +348,7 @@ mod tests {
         let mut item = valid_item();
         item["release_en"] = serde_json::json!("2099-01-01");
         let now = Utc::now();
-        let result = parse_uma_item(&item, now).unwrap();
+        let result = parse_uma(&item, now).unwrap();
         assert!(result.is_none());
     }
 
@@ -357,7 +357,7 @@ mod tests {
         let mut item = valid_item();
         item["rarity"] = serde_json::json!(99);
         let now = Utc::now();
-        let result = parse_uma_item(&item, now);
+        let result = parse_uma(&item, now);
         assert!(matches!(result, Err(ScraperError::UnknownValue(_))));
     }
 
@@ -366,7 +366,7 @@ mod tests {
         let mut item = valid_item();
         item["base_stats"] = serde_json::json!([98, 98, 88]);
         let now = Utc::now();
-        let result = parse_uma_item(&item, now);
+        let result = parse_uma(&item, now);
         assert!(matches!(result, Err(ScraperError::InvalidShape(_))));
     }
 
@@ -375,7 +375,7 @@ mod tests {
         let mut item = valid_item();
         item["aptitude"] = serde_json::json!(["A", "B", "C"]);
         let now = Utc::now();
-        let result = parse_uma_item(&item, now);
+        let result = parse_uma(&item, now);
         assert!(matches!(result, Err(ScraperError::InvalidShape(_))));
     }
 
@@ -385,7 +385,7 @@ mod tests {
         item.as_object_mut().unwrap().remove("skills_event");
         item.as_object_mut().unwrap().remove("skills_awakening");
         let now = Utc::now();
-        let uma = parse_uma_item(&item, now).unwrap().unwrap();
+        let uma = parse_uma(&item, now).unwrap().unwrap();
         assert_eq!(uma.skill_list.len(), 5); // 1 unique + 2 innate + 2 evo
     }
 
@@ -394,7 +394,7 @@ mod tests {
         let mut item = valid_item();
         item["stat_bonus"] = serde_json::json!([20, 0, 10]);
         let now = Utc::now();
-        let result = parse_uma_item(&item, now);
+        let result = parse_uma(&item, now);
         assert!(matches!(result, Err(ScraperError::InvalidShape(_))));
     }
 
@@ -403,7 +403,7 @@ mod tests {
         let now = DateTime::parse_from_rfc3339("2026-01-01T00:00:00+00:00")
             .unwrap()
             .with_timezone(&Utc);
-        let uma = parse_uma_item(&valid_item(), now).unwrap().unwrap();
+        let uma = parse_uma(&valid_item(), now).unwrap().unwrap();
 
         let evo_skills: Vec<_> = uma
             .skill_list
