@@ -4,7 +4,7 @@
 
 A data pipeline and API backend for an Umamusume: Pretty Derby discord bot.
 
-Scrapes [GameTora](https://gametora.com) on a monthly cadence, seeds a PostgreSQL database, and exposes the data for consumption by a Discord bot (separate project.)
+Used to scrape [GameTora](https://gametora.com) on a monthly cadence, seeds a PostgreSQL database, and exposes the data for consumption by a Discord bot (separate project.)
 
 ## Workspace Structure
 
@@ -30,7 +30,6 @@ uma sync all          # Both
 - **Language:** Rust
 - **Database:** PostgreSQL via [SQLx](https://github.com/launchbadge/sqlx)
 - **HTTP client:** reqwest
-- **HTML parsing:** scraper
 - **CLI:** clap
 - **Logging:** log + env_logger
 
