@@ -1,5 +1,6 @@
 use crate::client::ScraperClient;
 use crate::error::{ScraperError, ScraperResult};
+use crate::url_resolver::resolve_uma_url;
 use chrono::{DateTime, Utc};
 use log::info;
 use serde_json::Value;
@@ -13,11 +14,9 @@ use uma_core::{
     uma_skill::{SkillAcquisition, UmaSkill},
 };
 
-const CHARACTER_CARDS_URL: &str =
-    "https://gametora.com/data/umamusume/character-cards.45d7d1d4.json";
-
 pub async fn fetch_uma_roster(client: &ScraperClient) -> ScraperResult<Vec<Uma>> {
-    let json = client.fetch(CHARACTER_CARDS_URL).await?;
+    let url = resolve_uma_url(client).await?;
+    let json = client.fetch(&url).await?;
     parse_uma_roster(&json)
 }
 

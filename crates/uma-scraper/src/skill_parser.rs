@@ -1,6 +1,7 @@
 use crate::client::ScraperClient;
 use crate::error::{ScraperError, ScraperResult};
 use crate::icon_category::icon_id_to_category;
+use crate::url_resolver::resolve_skills_url;
 use log::info;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -9,10 +10,9 @@ use uma_core::{
     models::skill::{Condition, Effect, EffectType, Operator, Rarity, Skill},
 };
 
-const SKILLS_URL: &str = "https://gametora.com/data/umamusume/skills.e644e33c.json";
-
 pub async fn fetch_skill_roster(client: &ScraperClient) -> ScraperResult<Vec<Skill>> {
-    let json = client.fetch(SKILLS_URL).await?;
+    let url = resolve_skills_url(client).await?;
+    let json = client.fetch(&url).await?;
     parse_skill_roster(&json)
 }
 

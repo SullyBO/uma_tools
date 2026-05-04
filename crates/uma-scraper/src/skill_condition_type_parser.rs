@@ -1,17 +1,15 @@
-use crate::client::ScraperClient;
+use crate::{client::ScraperClient, url_resolver::resolve_conditions_url};
 use log::info;
 use serde_json::Value;
 use uma_core::models::skill::ConditionType;
 
 use crate::error::{ScraperError, ScraperResult};
 
-const SKILL_CONDITIONS_URL: &str =
-    "https://gametora.com/data/umamusume/static/skill_conditions.32e9f707.json";
-
 pub async fn fetch_skill_condition_types(
     client: &ScraperClient,
 ) -> ScraperResult<Vec<ConditionType>> {
-    let json = client.fetch(SKILL_CONDITIONS_URL).await?;
+    let url = resolve_conditions_url(client).await?;
+    let json = client.fetch(&url).await?;
     parse_skill_condition_types(&json)
 }
 
