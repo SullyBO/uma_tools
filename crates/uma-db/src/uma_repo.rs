@@ -1,5 +1,5 @@
-use crate::types::{DbAptitudeLevel, DbSkillAcquisition, DbUmaRarity};
-use sqlx::PgPool;
+use crate::types::{DbAptitudeLevel, DbSkillAcquisition, DbUmaRarity, UmaFilter, UmaRow};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use uma_core::models::uma::Uma;
 
 pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Error> {
@@ -180,4 +180,59 @@ ON CONFLICT (uma_id, skill_id, acquisition) DO UPDATE SET
     );
 
     Ok(())
+}
+
+pub async fn get_umas(pool: &PgPool, filter: UmaFilter) -> Result<Vec<UmaRow>, sqlx::Error> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT id, name, subtitle,
+         apt_turf, apt_dirt,
+         apt_short, apt_mile, apt_medium, apt_long,
+         apt_front, apt_pace, apt_late, apt_end
+         FROM umas WHERE 1=1",
+    );
+
+    if let Some(v) = filter.turf {
+        qb.push(" AND apt_turf >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.dirt {
+        qb.push(" AND apt_dirt >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.short {
+        qb.push(" AND apt_short >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.mile {
+        qb.push(" AND apt_mile >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.medium {
+        qb.push(" AND apt_medium >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.long {
+        qb.push(" AND apt_long >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.front {
+        qb.push(" AND apt_front >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.pace {
+        qb.push(" AND apt_pace >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.late {
+        qb.push(" AND apt_late >= ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.end {
+        qb.push(" AND apt_end >= ");
+        qb.push_bind(v);
+    }
+
+    qb.push(" ORDER BY name");
+
+    qb.build_query_as::<UmaRow>().fetch_all(pool).await
 }

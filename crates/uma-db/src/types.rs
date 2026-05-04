@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use sqlx::Type;
 use uma_core::{
     models::{
@@ -18,7 +19,7 @@ pub enum DbUmaRarity {
     SSR,
 }
 
-#[derive(Debug, Type)]
+#[derive(Debug, Type, Deserialize)]
 #[sqlx(type_name = "aptitude_level")]
 pub enum DbAptitudeLevel {
     #[sqlx(rename = "a")]
@@ -203,4 +204,45 @@ impl From<Operator> for DbSkillOperator {
             Operator::LtEq => DbSkillOperator::LtEq,
         }
     }
+}
+
+pub struct UmaFilter {
+    pub turf: Option<DbAptitudeLevel>,
+    pub dirt: Option<DbAptitudeLevel>,
+    pub short: Option<DbAptitudeLevel>,
+    pub mile: Option<DbAptitudeLevel>,
+    pub medium: Option<DbAptitudeLevel>,
+    pub long: Option<DbAptitudeLevel>,
+    pub front: Option<DbAptitudeLevel>,
+    pub pace: Option<DbAptitudeLevel>,
+    pub late: Option<DbAptitudeLevel>,
+    pub end: Option<DbAptitudeLevel>,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct UmaRow {
+    pub id: i32,
+    pub name: String,
+    pub subtitle: String,
+    pub apt_turf: DbAptitudeLevel,
+    pub apt_dirt: DbAptitudeLevel,
+    pub apt_short: DbAptitudeLevel,
+    pub apt_mile: DbAptitudeLevel,
+    pub apt_medium: DbAptitudeLevel,
+    pub apt_long: DbAptitudeLevel,
+    pub apt_front: DbAptitudeLevel,
+    pub apt_pace: DbAptitudeLevel,
+    pub apt_late: DbAptitudeLevel,
+    pub apt_end: DbAptitudeLevel,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct UmaSkillRow {
+    pub id: i32,
+    pub name: String,
+    pub category: DbSkillCategory,
+    pub rarity: DbSkillRarity,
+    pub sp_cost: i32,
+    pub acquisition: DbSkillAcquisition,
+    pub evolved_from: Option<i32>,
 }
