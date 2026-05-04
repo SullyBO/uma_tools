@@ -29,3 +29,7 @@ pub async fn resolve_skills_url(client: &ScraperClient) -> ScraperResult<String>
 pub async fn resolve_conditions_url(client: &ScraperClient) -> ScraperResult<String> {
     resolve_url(client, "static/skill_conditions", "static/skill_conditions").await
 }
+
+pub async fn resolve_racetracks_url(client: &ScraperClient) -> ScraperResult<String> {
+    resolve_url(client, "racetracks", "racetracks").await
+}

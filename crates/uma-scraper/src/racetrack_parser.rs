@@ -1,4 +1,4 @@
-use crate::client::ScraperClient;
+use crate::{client::ScraperClient, url_resolver::resolve_racetracks_url};
 use log::info;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -6,10 +6,9 @@ use uma_core::models::racetrack::{Racetrack, RacetrackName};
 
 use crate::error::{ScraperError, ScraperResult};
 
-const RACETRACKS_URL: &str = "https://gametora.com/data/umamusume/racetracks.7d2f3355.json";
-
 pub async fn fetch_racetracks(client: &ScraperClient) -> ScraperResult<Vec<Racetrack>> {
-    let json = client.fetch(RACETRACKS_URL).await?;
+    let url = resolve_racetracks_url(client).await?;
+    let json = client.fetch(&url).await?;
     parse_racetrack_roster(&json)
 }
 
