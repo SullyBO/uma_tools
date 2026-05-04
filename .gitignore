@@ -18,6 +18,7 @@ target/
 
 # Environment variables
 .env
+.env.prod
 
 # SQLx offline query cache
 .sqlx/
