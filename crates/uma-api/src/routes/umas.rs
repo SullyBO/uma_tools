@@ -1,8 +1,8 @@
 use crate::AppState;
+use crate::error::ApiError;
 use axum::{
     Json,
     extract::{Path, Query, State},
-    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use uma_db::types::{DbAptitudeLevel, UmaFilter};
@@ -43,7 +43,7 @@ pub struct UmaSummary {
 pub async fn list(
     State(state): State<AppState>,
     Query(params): Query<UmaQueryParams>,
-) -> Result<Json<Vec<UmaSummary>>, StatusCode> {
+) -> Result<Json<Vec<UmaSummary>>, ApiError> {
     let filter = UmaFilter {
         turf: params.turf,
         dirt: params.dirt,
@@ -57,9 +57,7 @@ pub async fn list(
         end: params.end,
     };
 
-    let rows = get_umas(&state.pool, filter)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let rows = get_umas(&state.pool, filter).await?;
 
     let umas = rows
         .into_iter()
@@ -115,15 +113,12 @@ pub struct SkillSummary {
 pub async fn detail(
     State(state): State<AppState>,
     Path(id): Path<i32>,
-) -> Result<Json<UmaDetail>, StatusCode> {
+) -> Result<Json<UmaDetail>, ApiError> {
     let uma = get_uma_by_id(&state.pool, id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
+        .await?
+        .ok_or(ApiError::NotFound)?;
 
-    let skills = get_skills_for_uma(&state.pool, id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let skills = get_skills_for_uma(&state.pool, id).await?;
 
     Ok(Json(UmaDetail {
         id: uma.id,

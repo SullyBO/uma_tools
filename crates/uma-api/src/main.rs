@@ -9,6 +9,7 @@ use axum::{
 use sqlx::PgPool;
 use std::sync::Arc;
 
+mod error;
 mod routes;
 
 #[derive(Clone)]

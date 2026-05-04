@@ -1,8 +1,8 @@
 use crate::AppState;
+use crate::error::ApiError;
 use axum::{
     Json,
     extract::{Path, Query, State},
-    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use uma_db::skill_repo::{get_skill_by_id, get_skills};
@@ -62,7 +62,7 @@ pub struct ConditionResponse {
 pub async fn list(
     State(state): State<AppState>,
     Query(params): Query<SkillQueryParams>,
-) -> Result<Json<Vec<SkillSummaryResponse>>, StatusCode> {
+) -> Result<Json<Vec<SkillSummaryResponse>>, ApiError> {
     let filter = SkillFilter {
         category: params.category,
         rarity: params.rarity,
@@ -70,9 +70,7 @@ pub async fn list(
         effect_type: params.effect_type,
     };
 
-    let rows = get_skills(&state.pool, filter)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let rows = get_skills(&state.pool, filter).await?;
 
     let skills = rows
         .into_iter()
@@ -92,11 +90,10 @@ pub async fn list(
 pub async fn detail(
     State(state): State<AppState>,
     Path(id): Path<i32>,
-) -> Result<Json<SkillDetailResponse>, StatusCode> {
+) -> Result<Json<SkillDetailResponse>, ApiError> {
     let detail = get_skill_by_id(&state.pool, id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
+        .await?
+        .ok_or(ApiError::NotFound)?;
 
     Ok(Json(SkillDetailResponse {
         id: detail.skill.id,
