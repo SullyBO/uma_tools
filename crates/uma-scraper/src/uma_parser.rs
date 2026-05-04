@@ -14,7 +14,7 @@ use uma_core::{
 };
 
 const CHARACTER_CARDS_URL: &str =
-    "https://gametora.com/data/umamusume/character-cards.94362f9a.json";
+    "https://gametora.com/data/umamusume/character-cards.45d7d1d4.json";
 
 pub async fn fetch_uma_roster(client: &ScraperClient) -> ScraperResult<Vec<Uma>> {
     let json = client.fetch(CHARACTER_CARDS_URL).await?;

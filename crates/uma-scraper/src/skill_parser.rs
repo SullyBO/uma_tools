@@ -9,7 +9,7 @@ use uma_core::{
     models::skill::{Condition, Effect, EffectType, Operator, Rarity, Skill},
 };
 
-const SKILLS_URL: &str = "https://gametora.com/data/umamusume/skills.3b4d4239.json";
+const SKILLS_URL: &str = "https://gametora.com/data/umamusume/skills.e644e33c.json";
 
 pub async fn fetch_skill_roster(client: &ScraperClient) -> ScraperResult<Vec<Skill>> {
     let json = client.fetch(SKILLS_URL).await?;
@@ -136,14 +136,14 @@ fn parse_effect_group(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
             let scale = |divisor: f64| (raw / divisor) as f32;
 
             match type_id {
-                1  => Some(EffectType::SpeedUp(scale(10000.0))),
-                2  => Some(EffectType::StaminaUp(scale(10000.0))),
-                3  => Some(EffectType::PowerUp(scale(10000.0))),
-                4  => Some(EffectType::GutsUp(scale(10000.0))),
-                5  => Some(EffectType::WitUp(scale(10000.0))),
-                6  => Some(EffectType::RunawaySkill),
-                8  => Some(EffectType::FieldOfViewUp(scale(10000.0))),
-                9  => Some(EffectType::StaminaRecovery(scale(1000.0))),
+                1 => Some(EffectType::SpeedUp(scale(10000.0))),
+                2 => Some(EffectType::StaminaUp(scale(10000.0))),
+                3 => Some(EffectType::PowerUp(scale(10000.0))),
+                4 => Some(EffectType::GutsUp(scale(10000.0))),
+                5 => Some(EffectType::WitUp(scale(10000.0))),
+                6 => Some(EffectType::RunawaySkill),
+                8 => Some(EffectType::FieldOfViewUp(scale(10000.0))),
+                9 => Some(EffectType::StaminaRecovery(scale(1000.0))),
                 10 => Some(EffectType::StartReactionImprovement(scale(10000.0))),
                 13 => Some(EffectType::RushTimeIncrease(scale(10000.0))),
                 14 => Some(EffectType::StartDelayAdded(scale(10000.0))),
@@ -160,7 +160,7 @@ fn parse_effect_group(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
                 41 => Some(EffectType::ActivateRelatedSkillsOnAllUma),
                 42 => Some(EffectType::EvolvedSkillDurationUp(scale(1000.0))),
                 48 => Some(EffectType::ZenkaiSpurtAcceleration(scale(10000.0))),
-                _  => None,
+                _ => None,
             }
         })
         .collect();
