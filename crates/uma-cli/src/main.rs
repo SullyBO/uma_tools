@@ -27,10 +27,14 @@ enum SyncTarget {
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().ok();
-    env_logger::builder()
-        .target(env_logger::Target::Stderr)
-        .init();
+    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    let env_file = match app_env.as_str() {
+        "prod" => ".env.prod",
+        _ => ".env",
+    };
+    dotenvy::from_filename(env_file).ok();
+    env_logger::init();
+    log::info!("Running in {app_env} environment");
 
     let db = uma_db::db::Db::connect()
         .await
