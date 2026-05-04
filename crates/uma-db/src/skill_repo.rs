@@ -250,52 +250,72 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
         .fetch_all(pool)
         .await?;
 
-    let mut triggers = Vec::new();
-
-    for trigger in trigger_records {
-        let effects = sqlx::query_as!(
-            EffectRow,
-            "SELECT effect_type, effect_value FROM skill_trigger_effects WHERE trigger_id = $1",
-            trigger.id
-        )
-        .fetch_all(pool)
-        .await?;
-
-        let all_conditions = sqlx::query!(
-            r#"
-            SELECT cond_key, operator as "operator: DbSkillOperator",
-                cond_val, is_precondition, is_or
-            FROM skill_trigger_conditions WHERE trigger_id = $1
-            "#,
-            trigger.id
-        )
-        .fetch_all(pool)
-        .await?;
-
-        let mut conditions = Vec::new();
-        let mut preconditions = Vec::new();
-
-        for c in all_conditions {
-            let row = ConditionRow {
-                cond_key: c.cond_key,
-                operator: c.operator,
-                cond_val: c.cond_val,
-                is_or: c.is_or,
-            };
-            if c.is_precondition {
-                preconditions.push(row);
-            } else {
-                conditions.push(row);
-            }
-        }
-
-        triggers.push(TriggerRow {
-            id: trigger.id,
-            effects,
-            conditions,
-            preconditions,
-        });
+    if trigger_records.is_empty() {
+        return Ok(Some(SkillDetail { skill, triggers: vec![] }));
     }
+
+    let trigger_ids: Vec<i32> = trigger_records.iter().map(|t| t.id).collect();
+
+    let all_effects = sqlx::query_as!(
+        EffectRow,
+        "SELECT trigger_id, effect_type, effect_value FROM skill_trigger_effects WHERE trigger_id = ANY($1::int[])",
+        &trigger_ids
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let all_conditions = sqlx::query!(
+        r#"
+        SELECT trigger_id, cond_key, operator as "operator: DbSkillOperator",
+            cond_val, is_precondition, is_or
+        FROM skill_trigger_conditions WHERE trigger_id = ANY($1::int[])
+        "#,
+        &trigger_ids
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let triggers = trigger_ids
+        .iter()
+        .map(|&tid| {
+            let effects = all_effects
+                .iter()
+                .filter(|e| e.trigger_id == tid)
+                .map(|e| EffectRow {
+                    trigger_id: e.trigger_id,
+                    effect_type: e.effect_type.clone(),
+                    effect_value: e.effect_value,
+                })
+                .collect();
+
+            let (preconditions, conditions) = all_conditions
+                .iter()
+                .filter(|c| c.trigger_id == tid)
+                .partition::<Vec<_>, _>(|c| c.is_precondition);
+
+            let conditions: Vec<ConditionRow> = conditions
+                .into_iter()
+                .map(|c| ConditionRow {
+                    cond_key: c.cond_key.clone(),
+                    operator: c.operator,
+                    cond_val: c.cond_val.clone(),
+                    is_or: c.is_or,
+                })
+                .collect();
+
+            let preconditions: Vec<ConditionRow> = preconditions
+                .into_iter()
+                .map(|c| ConditionRow {
+                    cond_key: c.cond_key.clone(),
+                    operator: c.operator,
+                    cond_val: c.cond_val.clone(),
+                    is_or: c.is_or,
+                })
+                .collect();
+
+            TriggerRow { id: tid, effects, conditions, preconditions }
+        })
+        .collect();
 
     Ok(Some(SkillDetail { skill, triggers }))
 }

@@ -176,7 +176,7 @@ impl From<SkillRarity> for DbSkillRarity {
     }
 }
 
-#[derive(Debug, Type)]
+#[derive(Debug, Clone, Copy, Type, Deserialize)]
 #[sqlx(type_name = "skill_operator")]
 pub enum DbSkillOperator {
     #[sqlx(rename = "eq")]
@@ -277,6 +277,7 @@ pub struct TriggerRow {
 }
 
 pub struct EffectRow {
+    pub trigger_id: i32,
     pub effect_type: String,
     pub effect_value: Option<f32>,
 }
