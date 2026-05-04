@@ -2591,6 +2591,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "subtle",
  "tokio",
  "uma-core",
  "uma-db",

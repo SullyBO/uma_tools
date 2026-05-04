@@ -8,14 +8,30 @@ use axum::{
 };
 use sqlx::PgPool;
 use std::sync::Arc;
+use subtle::ConstantTimeEq;
 
 mod error;
 mod routes;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AppState {
     pub pool: Arc<PgPool>,
-    pub api_key: String,
+    api_key: ApiKey,
+}
+
+#[derive(Clone)]
+struct ApiKey(String);
+
+impl std::fmt::Debug for ApiKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("[REDACTED]")
+    }
+}
+
+impl ApiKey {
+    fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
 }
 
 #[tokio::main]
@@ -27,10 +43,12 @@ async fn main() {
     };
     dotenvy::from_filename(env_file).ok();
     env_logger::init();
-    let api_key = std::env::var("API_KEY")
-        .expect("API_KEY must be set")
-        .trim()
-        .to_string();
+    let api_key = ApiKey(
+        std::env::var("API_KEY")
+            .expect("API_KEY must be set")
+            .trim()
+            .to_string(),
+    );
     log::info!("Running in {app_env} environment");
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -74,7 +92,9 @@ pub async fn auth_middleware(
         .and_then(|v| v.strip_prefix("Bearer "));
 
     match provided_key {
-        Some(key) if key.trim() == state.api_key.trim() => Ok(next.run(request).await),
+        Some(key) if key.as_bytes().ct_eq(state.api_key.as_bytes()).into() => {
+            Ok(next.run(request).await)
+        }
         _ => Err(StatusCode::UNAUTHORIZED),
     }
 }

@@ -251,7 +251,10 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
         .await?;
 
     if trigger_records.is_empty() {
-        return Ok(Some(SkillDetail { skill, triggers: vec![] }));
+        return Ok(Some(SkillDetail {
+            skill,
+            triggers: vec![],
+        }));
     }
 
     let trigger_ids: Vec<i32> = trigger_records.iter().map(|t| t.id).collect();
@@ -313,7 +316,12 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
                 })
                 .collect();
 
-            TriggerRow { id: tid, effects, conditions, preconditions }
+            TriggerRow {
+                id: tid,
+                effects,
+                conditions,
+                preconditions,
+            }
         })
         .collect();
 
