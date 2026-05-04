@@ -1,5 +1,8 @@
-use crate::types::{DbSkillCategory, DbSkillOperator, DbSkillRarity};
-use sqlx::PgPool;
+use crate::types::{
+    ConditionRow, DbSkillCategory, DbSkillOperator, DbSkillRarity, EffectRow, SkillDetail,
+    SkillFilter, SkillRow, TriggerRow,
+};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use uma_core::models::skill::{ConditionType, Skill};
 
 pub async fn upsert_all_condition_types(
@@ -189,4 +192,110 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
     );
 
     Ok(())
+}
+
+pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillRow>, sqlx::Error> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT DISTINCT s.id, s.name, s.category, s.rarity, s.sp_cost, s.is_jp_only
+         FROM skills s",
+    );
+
+    if filter.effect_type.is_some() {
+        qb.push(" JOIN skill_triggers st ON st.skill_id = s.id");
+        qb.push(" JOIN skill_trigger_effects ste ON ste.trigger_id = st.id");
+    }
+
+    qb.push(" WHERE 1=1");
+
+    if let Some(v) = filter.category {
+        qb.push(" AND s.category = ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.rarity {
+        qb.push(" AND s.rarity = ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.is_jp_only {
+        qb.push(" AND s.is_jp_only = ");
+        qb.push_bind(v);
+    }
+    if let Some(v) = filter.effect_type {
+        qb.push(" AND ste.effect_type = ");
+        qb.push_bind(v);
+    }
+
+    qb.push(" ORDER BY s.name");
+
+    qb.build_query_as::<SkillRow>().fetch_all(pool).await
+}
+
+pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetail>, sqlx::Error> {
+    let skill = sqlx::query_as!(
+        SkillRow,
+        r#"
+        SELECT id, name, category as "category: DbSkillCategory",
+            rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only
+        FROM skills WHERE id = $1
+        "#,
+        id
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    let Some(skill) = skill else {
+        return Ok(None);
+    };
+
+    let trigger_records = sqlx::query!("SELECT id FROM skill_triggers WHERE skill_id = $1", id)
+        .fetch_all(pool)
+        .await?;
+
+    let mut triggers = Vec::new();
+
+    for trigger in trigger_records {
+        let effects = sqlx::query_as!(
+            EffectRow,
+            "SELECT effect_type, effect_value FROM skill_trigger_effects WHERE trigger_id = $1",
+            trigger.id
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let all_conditions = sqlx::query!(
+            r#"
+            SELECT cond_key, operator as "operator: DbSkillOperator",
+                cond_val, is_precondition, is_or
+            FROM skill_trigger_conditions WHERE trigger_id = $1
+            "#,
+            trigger.id
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let mut conditions = Vec::new();
+        let mut preconditions = Vec::new();
+
+        for c in all_conditions {
+            let row = ConditionRow {
+                cond_key: c.cond_key,
+                operator: c.operator,
+                cond_val: c.cond_val,
+                is_or: c.is_or,
+            };
+            if c.is_precondition {
+                preconditions.push(row);
+            } else {
+                conditions.push(row);
+            }
+        }
+
+        triggers.push(TriggerRow {
+            id: trigger.id,
+            effects,
+            conditions,
+            preconditions,
+        });
+    }
+
+    Ok(Some(SkillDetail { skill, triggers }))
 }

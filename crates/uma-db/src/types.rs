@@ -89,7 +89,7 @@ impl From<SkillAcquisition> for DbSkillAcquisition {
     }
 }
 
-#[derive(Debug, Type)]
+#[derive(Debug, Type, Deserialize)]
 #[sqlx(type_name = "skill_category")]
 pub enum DbSkillCategory {
     #[sqlx(rename = "green")]
@@ -128,7 +128,7 @@ pub enum DbSkillCategory {
     Zenkai,
 }
 
-#[derive(Debug, Type)]
+#[derive(Debug, Type, Deserialize)]
 #[sqlx(type_name = "skill_rarity")]
 pub enum DbSkillRarity {
     #[sqlx(rename = "normal")]
@@ -245,4 +245,45 @@ pub struct UmaSkillRow {
     pub sp_cost: i32,
     pub acquisition: DbSkillAcquisition,
     pub evolved_from: Option<i32>,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct SkillRow {
+    pub id: i32,
+    pub name: String,
+    pub category: DbSkillCategory,
+    pub rarity: DbSkillRarity,
+    pub sp_cost: i32,
+    pub is_jp_only: bool,
+}
+
+pub struct SkillFilter {
+    pub category: Option<DbSkillCategory>,
+    pub rarity: Option<DbSkillRarity>,
+    pub is_jp_only: Option<bool>,
+    pub effect_type: Option<String>,
+}
+
+pub struct SkillDetail {
+    pub skill: SkillRow,
+    pub triggers: Vec<TriggerRow>,
+}
+
+pub struct TriggerRow {
+    pub id: i32,
+    pub effects: Vec<EffectRow>,
+    pub conditions: Vec<ConditionRow>,
+    pub preconditions: Vec<ConditionRow>,
+}
+
+pub struct EffectRow {
+    pub effect_type: String,
+    pub effect_value: Option<f32>,
+}
+
+pub struct ConditionRow {
+    pub cond_key: String,
+    pub operator: DbSkillOperator,
+    pub cond_val: String,
+    pub is_or: bool,
 }

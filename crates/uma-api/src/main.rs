@@ -32,6 +32,8 @@ async fn main() {
     let app = Router::new()
         .route("/umas", get(routes::umas::list))
         .route("/umas/{id}", get(routes::umas::detail))
+        .route("/skills", get(routes::skills::list))
+        .route("/skills/{id}", get(routes::skills::detail))
         .with_state(state);
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
