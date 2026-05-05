@@ -1,43 +1,24 @@
 use crate::AppState;
 use crate::error::ApiError;
+use crate::routes::models::{UmaDetail, UmaIndex, UmaQueryParams, UmaSkillEntry, UmaSummary};
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use serde::{Deserialize, Serialize};
-use uma_db::types::{DbAptitudeLevel, UmaFilter};
-use uma_db::uma_repo::get_umas;
-use uma_db::uma_skill_repo::{get_skills_for_uma, get_uma_by_id};
+use uma_db::{
+    uma_skill_repo::{get_skills_for_uma, get_uma_by_id},
+    {types::UmaFilter, uma_repo::get_umas},
+};
 
-#[derive(Deserialize)]
-pub struct UmaQueryParams {
-    pub turf: Option<DbAptitudeLevel>,
-    pub dirt: Option<DbAptitudeLevel>,
-    pub short: Option<DbAptitudeLevel>,
-    pub mile: Option<DbAptitudeLevel>,
-    pub medium: Option<DbAptitudeLevel>,
-    pub long: Option<DbAptitudeLevel>,
-    pub front: Option<DbAptitudeLevel>,
-    pub pace: Option<DbAptitudeLevel>,
-    pub late: Option<DbAptitudeLevel>,
-    pub end: Option<DbAptitudeLevel>,
-}
+pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<UmaIndex>>, ApiError> {
+    let rows = sqlx::query_as!(
+        UmaIndex,
+        "SELECT id, name, subtitle AS version FROM umas ORDER BY name, subtitle"
+    )
+    .fetch_all(&*state.pool)
+    .await?;
 
-#[derive(Serialize)]
-pub struct UmaSummary {
-    pub id: i32,
-    pub name: String,
-    pub subtitle: String,
-    pub apt_turf: String,
-    pub apt_dirt: String,
-    pub apt_short: String,
-    pub apt_mile: String,
-    pub apt_medium: String,
-    pub apt_long: String,
-    pub apt_front: String,
-    pub apt_pace: String,
-    pub apt_late: String,
-    pub apt_end: String,
+    Ok(Json(rows))
 }
 
 pub async fn list(
@@ -81,35 +62,6 @@ pub async fn list(
     Ok(Json(umas))
 }
 
-#[derive(Serialize)]
-pub struct UmaDetail {
-    pub id: i32,
-    pub name: String,
-    pub subtitle: String,
-    pub apt_turf: String,
-    pub apt_dirt: String,
-    pub apt_short: String,
-    pub apt_mile: String,
-    pub apt_medium: String,
-    pub apt_long: String,
-    pub apt_front: String,
-    pub apt_pace: String,
-    pub apt_late: String,
-    pub apt_end: String,
-    pub skills: Vec<SkillSummary>,
-}
-
-#[derive(Serialize)]
-pub struct SkillSummary {
-    pub id: i32,
-    pub name: String,
-    pub category: String,
-    pub rarity: String,
-    pub sp_cost: i32,
-    pub acquisition: String,
-    pub evolved_from: Option<i32>,
-}
-
 pub async fn detail(
     State(state): State<AppState>,
     Path(id): Path<i32>,
@@ -136,7 +88,7 @@ pub async fn detail(
         apt_end: format!("{:?}", uma.apt_end),
         skills: skills
             .into_iter()
-            .map(|s| SkillSummary {
+            .map(|s| UmaSkillEntry {
                 id: s.id,
                 name: s.name,
                 category: format!("{:?}", s.category),

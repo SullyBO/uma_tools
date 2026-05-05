@@ -1,68 +1,19 @@
 use crate::AppState;
 use crate::error::ApiError;
+use crate::routes::models::{
+    SkillCondition, SkillDetail, SkillEffect, SkillQueryParams, SkillSummary, SkillTrigger,
+};
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use serde::{Deserialize, Serialize};
 use uma_db::skill_repo::{get_skill_by_id, get_skills};
-use uma_db::types::{DbSkillCategory, DbSkillRarity, SkillFilter};
-
-#[derive(Deserialize)]
-pub struct SkillQueryParams {
-    pub category: Option<DbSkillCategory>,
-    pub rarity: Option<DbSkillRarity>,
-    pub is_jp_only: Option<bool>,
-    pub effect_type: Option<String>,
-}
-
-#[derive(Serialize)]
-pub struct SkillSummaryResponse {
-    pub id: i32,
-    pub name: String,
-    pub category: String,
-    pub rarity: String,
-    pub sp_cost: i32,
-    pub is_jp_only: bool,
-}
-
-#[derive(Serialize)]
-pub struct SkillDetailResponse {
-    pub id: i32,
-    pub name: String,
-    pub category: String,
-    pub rarity: String,
-    pub sp_cost: i32,
-    pub is_jp_only: bool,
-    pub triggers: Vec<TriggerResponse>,
-}
-
-#[derive(Serialize)]
-pub struct TriggerResponse {
-    pub id: i32,
-    pub effects: Vec<EffectResponse>,
-    pub conditions: Vec<ConditionResponse>,
-    pub preconditions: Vec<ConditionResponse>,
-}
-
-#[derive(Serialize)]
-pub struct EffectResponse {
-    pub effect_type: String,
-    pub effect_value: Option<f32>,
-}
-
-#[derive(Serialize)]
-pub struct ConditionResponse {
-    pub cond_key: String,
-    pub operator: String,
-    pub cond_val: String,
-    pub is_or: bool,
-}
+use uma_db::types::SkillFilter;
 
 pub async fn list(
     State(state): State<AppState>,
     Query(params): Query<SkillQueryParams>,
-) -> Result<Json<Vec<SkillSummaryResponse>>, ApiError> {
+) -> Result<Json<Vec<SkillSummary>>, ApiError> {
     let filter = SkillFilter {
         category: params.category,
         rarity: params.rarity,
@@ -74,7 +25,7 @@ pub async fn list(
 
     let skills = rows
         .into_iter()
-        .map(|s| SkillSummaryResponse {
+        .map(|s| SkillSummary {
             id: s.id,
             name: s.name,
             category: format!("{:?}", s.category),
@@ -90,12 +41,12 @@ pub async fn list(
 pub async fn detail(
     State(state): State<AppState>,
     Path(id): Path<i32>,
-) -> Result<Json<SkillDetailResponse>, ApiError> {
+) -> Result<Json<SkillDetail>, ApiError> {
     let detail = get_skill_by_id(&state.pool, id)
         .await?
         .ok_or(ApiError::NotFound)?;
 
-    Ok(Json(SkillDetailResponse {
+    Ok(Json(SkillDetail {
         id: detail.skill.id,
         name: detail.skill.name,
         category: format!("{:?}", detail.skill.category),
@@ -105,12 +56,12 @@ pub async fn detail(
         triggers: detail
             .triggers
             .into_iter()
-            .map(|t| TriggerResponse {
+            .map(|t| SkillTrigger {
                 id: t.id,
                 effects: t
                     .effects
                     .into_iter()
-                    .map(|e| EffectResponse {
+                    .map(|e| SkillEffect {
                         effect_type: e.effect_type,
                         effect_value: e.effect_value,
                     })
@@ -118,7 +69,7 @@ pub async fn detail(
                 conditions: t
                     .conditions
                     .into_iter()
-                    .map(|c| ConditionResponse {
+                    .map(|c| SkillCondition {
                         cond_key: c.cond_key,
                         operator: format!("{:?}", c.operator),
                         cond_val: c.cond_val,
@@ -128,7 +79,7 @@ pub async fn detail(
                 preconditions: t
                     .preconditions
                     .into_iter()
-                    .map(|c| ConditionResponse {
+                    .map(|c| SkillCondition {
                         cond_key: c.cond_key,
                         operator: format!("{:?}", c.operator),
                         cond_val: c.cond_val,
