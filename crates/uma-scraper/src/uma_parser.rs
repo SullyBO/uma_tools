@@ -101,10 +101,7 @@ fn parse_uma(item: &Value, now: DateTime<Utc>) -> ScraperResult<Option<Uma>> {
         .ok_or_else(|| ScraperError::MissingField("name_en".into()))?
         .to_string();
 
-    let subtitle = item["title_en_gl"]
-        .as_str()
-        .ok_or_else(|| ScraperError::MissingField("title_en_gl".into()))?
-        .to_string();
+    let subtitle = item["version"].as_str().unwrap_or("default").to_string();
 
     let rarity = parse_rarity(&item["rarity"])?;
     let base_stats = parse_base_stats(&item["base_stats"])?;
