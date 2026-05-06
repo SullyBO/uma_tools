@@ -39,7 +39,8 @@ pub async fn get_uma_by_id(pool: &PgPool, id: i32) -> Result<Option<UmaRow>, sql
             apt_front as "apt_front: DbAptitudeLevel",
             apt_pace as "apt_pace: DbAptitudeLevel",
             apt_late as "apt_late: DbAptitudeLevel",
-            apt_end as "apt_end: DbAptitudeLevel"
+            apt_end as "apt_end: DbAptitudeLevel",
+            growth_speed, growth_stamina, growth_power, growth_guts, growth_wit
         FROM umas WHERE id = $1
         "#,
         id

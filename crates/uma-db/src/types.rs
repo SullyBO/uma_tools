@@ -234,6 +234,11 @@ pub struct UmaRow {
     pub apt_pace: DbAptitudeLevel,
     pub apt_late: DbAptitudeLevel,
     pub apt_end: DbAptitudeLevel,
+    pub growth_speed: i32,
+    pub growth_stamina: i32,
+    pub growth_power: i32,
+    pub growth_guts: i32,
+    pub growth_wit: i32,
 }
 
 #[derive(sqlx::FromRow)]

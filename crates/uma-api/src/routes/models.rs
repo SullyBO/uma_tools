@@ -54,6 +54,11 @@ pub struct UmaDetail {
     pub apt_pace: String,
     pub apt_late: String,
     pub apt_end: String,
+    pub growth_speed: i32,
+    pub growth_stamina: i32,
+    pub growth_power: i32,
+    pub growth_guts: i32,
+    pub growth_wit: i32,
     pub skills: Vec<UmaSkillEntry>,
 }
 

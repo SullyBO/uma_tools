@@ -71,7 +71,6 @@ pub async fn detail(
         .ok_or(ApiError::NotFound)?;
 
     let skills = get_skills_for_uma(&state.pool, id).await?;
-
     Ok(Json(UmaDetail {
         id: uma.id,
         name: uma.name,
@@ -86,6 +85,11 @@ pub async fn detail(
         apt_pace: format!("{:?}", uma.apt_pace),
         apt_late: format!("{:?}", uma.apt_late),
         apt_end: format!("{:?}", uma.apt_end),
+        growth_speed: uma.growth_speed,
+        growth_stamina: uma.growth_stamina,
+        growth_power: uma.growth_power,
+        growth_guts: uma.growth_guts,
+        growth_wit: uma.growth_wit,
         skills: skills
             .into_iter()
             .map(|s| UmaSkillEntry {
