@@ -1,4 +1,4 @@
-use crate::types::{DbAptitudeLevel, DbSkillAcquisition, DbUmaRarity, UmaFilter, UmaRow};
+use crate::types::{DbAptitudeLevel, DbSkillAcquisition, DbUmaRarity, UmaFilter, UmaSummaryRow};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use uma_core::models::uma::Uma;
 
@@ -182,7 +182,7 @@ ON CONFLICT (uma_id, skill_id, acquisition) DO UPDATE SET
     Ok(())
 }
 
-pub async fn get_umas(pool: &PgPool, filter: UmaFilter) -> Result<Vec<UmaRow>, sqlx::Error> {
+pub async fn get_umas(pool: &PgPool, filter: UmaFilter) -> Result<Vec<UmaSummaryRow>, sqlx::Error> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
         "SELECT id, name, subtitle,
          apt_turf, apt_dirt,
@@ -234,5 +234,5 @@ pub async fn get_umas(pool: &PgPool, filter: UmaFilter) -> Result<Vec<UmaRow>, s
 
     qb.push(" ORDER BY name");
 
-    qb.build_query_as::<UmaRow>().fetch_all(pool).await
+    qb.build_query_as::<UmaSummaryRow>().fetch_all(pool).await
 }
