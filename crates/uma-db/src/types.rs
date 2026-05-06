@@ -242,6 +242,23 @@ pub struct UmaRow {
 }
 
 #[derive(sqlx::FromRow)]
+pub struct UmaSummaryRow {
+    pub id: i32,
+    pub name: String,
+    pub subtitle: String,
+    pub apt_turf: DbAptitudeLevel,
+    pub apt_dirt: DbAptitudeLevel,
+    pub apt_short: DbAptitudeLevel,
+    pub apt_mile: DbAptitudeLevel,
+    pub apt_medium: DbAptitudeLevel,
+    pub apt_long: DbAptitudeLevel,
+    pub apt_front: DbAptitudeLevel,
+    pub apt_pace: DbAptitudeLevel,
+    pub apt_late: DbAptitudeLevel,
+    pub apt_end: DbAptitudeLevel,
+}
+
+#[derive(sqlx::FromRow)]
 pub struct UmaSkillRow {
     pub id: i32,
     pub name: String,
