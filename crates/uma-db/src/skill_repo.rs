@@ -220,8 +220,8 @@ pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillR
         qb.push_bind(v);
     }
     if let Some(v) = filter.effect_type {
-        qb.push(" AND ste.effect_type = ");
-        qb.push_bind(v);
+        qb.push(" AND ste.effect_type ILIKE ");
+        qb.push_bind(format!("%{}%", v));
     }
 
     qb.push(" ORDER BY s.name");
