@@ -28,8 +28,8 @@ pub async fn list(
         .map(|s| SkillSummary {
             id: s.id,
             name: s.name,
-            category: format!("{:?}", s.category),
-            rarity: format!("{:?}", s.rarity),
+            category: s.category.to_string(),
+            rarity: s.rarity.to_string(),
             sp_cost: s.sp_cost,
             is_jp_only: s.is_jp_only,
         })
@@ -42,6 +42,13 @@ pub async fn detail(
     State(state): State<AppState>,
     Path(id): Path<i32>,
 ) -> Result<Json<SkillDetail>, ApiError> {
+    let map_condition = |c: uma_db::types::ConditionRow| SkillCondition {
+        cond_key: c.cond_key,
+        operator: c.operator.to_string(),
+        cond_val: c.cond_val,
+        is_or: c.is_or,
+    };
+
     let detail = get_skill_by_id(&state.pool, id)
         .await?
         .ok_or(ApiError::NotFound)?;
@@ -49,8 +56,8 @@ pub async fn detail(
     Ok(Json(SkillDetail {
         id: detail.skill.id,
         name: detail.skill.name,
-        category: format!("{:?}", detail.skill.category),
-        rarity: format!("{:?}", detail.skill.rarity),
+        category: detail.skill.category.to_string(),
+        rarity: detail.skill.rarity.to_string(),
         sp_cost: detail.skill.sp_cost,
         is_jp_only: detail.skill.is_jp_only,
         triggers: detail
@@ -66,26 +73,8 @@ pub async fn detail(
                         effect_value: e.effect_value,
                     })
                     .collect(),
-                conditions: t
-                    .conditions
-                    .into_iter()
-                    .map(|c| SkillCondition {
-                        cond_key: c.cond_key,
-                        operator: format!("{:?}", c.operator),
-                        cond_val: c.cond_val,
-                        is_or: c.is_or,
-                    })
-                    .collect(),
-                preconditions: t
-                    .preconditions
-                    .into_iter()
-                    .map(|c| SkillCondition {
-                        cond_key: c.cond_key,
-                        operator: format!("{:?}", c.operator),
-                        cond_val: c.cond_val,
-                        is_or: c.is_or,
-                    })
-                    .collect(),
+                conditions: t.conditions.into_iter().map(map_condition).collect(),
+                preconditions: t.preconditions.into_iter().map(map_condition).collect(),
             })
             .collect(),
     }))

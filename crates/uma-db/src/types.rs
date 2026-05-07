@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use sqlx::Type;
+use std::fmt;
 use uma_core::{
     models::{
         skill::{Category, Operator, Rarity as SkillRarity},
@@ -17,6 +18,16 @@ pub enum DbUmaRarity {
     SR,
     #[sqlx(rename = "ssr")]
     SSR,
+}
+
+impl fmt::Display for DbUmaRarity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbUmaRarity::R => write!(f, "r"),
+            DbUmaRarity::SR => write!(f, "sr"),
+            DbUmaRarity::SSR => write!(f, "ssr"),
+        }
+    }
 }
 
 #[derive(Debug, Type, Deserialize)]
@@ -38,6 +49,20 @@ pub enum DbAptitudeLevel {
     G,
 }
 
+impl fmt::Display for DbAptitudeLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbAptitudeLevel::A => write!(f, "A"),
+            DbAptitudeLevel::B => write!(f, "B"),
+            DbAptitudeLevel::C => write!(f, "C"),
+            DbAptitudeLevel::D => write!(f, "D"),
+            DbAptitudeLevel::E => write!(f, "E"),
+            DbAptitudeLevel::F => write!(f, "F"),
+            DbAptitudeLevel::G => write!(f, "G"),
+        }
+    }
+}
+
 #[derive(Debug, Type)]
 #[sqlx(type_name = "skill_acquisition", rename_all = "PascalCase")]
 pub enum DbSkillAcquisition {
@@ -51,6 +76,18 @@ pub enum DbSkillAcquisition {
     Event,
     #[sqlx(rename = "evolution")]
     Evolution,
+}
+
+impl fmt::Display for DbSkillAcquisition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbSkillAcquisition::Unique => write!(f, "unique"),
+            DbSkillAcquisition::Innate => write!(f, "innate"),
+            DbSkillAcquisition::Awakening => write!(f, "awakening"),
+            DbSkillAcquisition::Event => write!(f, "event"),
+            DbSkillAcquisition::Evolution => write!(f, "evolution"),
+        }
+    }
 }
 
 impl From<UmaRarity> for DbUmaRarity {
@@ -91,6 +128,7 @@ impl From<SkillAcquisition> for DbSkillAcquisition {
 
 #[derive(Debug, Type, Deserialize)]
 #[sqlx(type_name = "skill_category")]
+#[serde(rename_all = "snake_case")]
 pub enum DbSkillCategory {
     #[sqlx(rename = "green")]
     Green,
@@ -128,8 +166,33 @@ pub enum DbSkillCategory {
     Zenkai,
 }
 
+impl fmt::Display for DbSkillCategory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbSkillCategory::Green => write!(f, "green"),
+            DbSkillCategory::Recovery => write!(f, "recovery"),
+            DbSkillCategory::Velocity => write!(f, "velocity"),
+            DbSkillCategory::Acceleration => write!(f, "acceleration"),
+            DbSkillCategory::Movement => write!(f, "movement"),
+            DbSkillCategory::Gate => write!(f, "gate"),
+            DbSkillCategory::Vision => write!(f, "vision"),
+            DbSkillCategory::SpeedDebuff => write!(f, "speed_debuff"),
+            DbSkillCategory::AccelDebuff => write!(f, "accel_debuff"),
+            DbSkillCategory::FrenzyDebuff => write!(f, "frenzy_debuff"),
+            DbSkillCategory::StaminaDrain => write!(f, "stamina_drain"),
+            DbSkillCategory::VisionDebuff => write!(f, "vision_debuff"),
+            DbSkillCategory::Purple => write!(f, "purple"),
+            DbSkillCategory::Scenario => write!(f, "scenario"),
+            DbSkillCategory::Unique => write!(f, "unique"),
+            DbSkillCategory::UniqueRecovery => write!(f, "unique_recovery"),
+            DbSkillCategory::Zenkai => write!(f, "zenkai"),
+        }
+    }
+}
+
 #[derive(Debug, Type, Deserialize)]
 #[sqlx(type_name = "skill_rarity")]
+#[serde(rename_all = "snake_case")]
 pub enum DbSkillRarity {
     #[sqlx(rename = "normal")]
     Normal,
@@ -139,6 +202,17 @@ pub enum DbSkillRarity {
     Unique,
     #[sqlx(rename = "evolution")]
     Evolution,
+}
+
+impl fmt::Display for DbSkillRarity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbSkillRarity::Normal => write!(f, "normal"),
+            DbSkillRarity::Rare => write!(f, "rare"),
+            DbSkillRarity::Unique => write!(f, "unique"),
+            DbSkillRarity::Evolution => write!(f, "evolution"),
+        }
+    }
 }
 
 impl From<Category> for DbSkillCategory {
@@ -191,6 +265,19 @@ pub enum DbSkillOperator {
     Lt,
     #[sqlx(rename = "lt_eq")]
     LtEq,
+}
+
+impl fmt::Display for DbSkillOperator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbSkillOperator::Eq => write!(f, "eq"),
+            DbSkillOperator::NotEq => write!(f, "not_eq"),
+            DbSkillOperator::Gt => write!(f, "gt"),
+            DbSkillOperator::GtEq => write!(f, "gt_eq"),
+            DbSkillOperator::Lt => write!(f, "lt"),
+            DbSkillOperator::LtEq => write!(f, "lt_eq"),
+        }
+    }
 }
 
 impl From<Operator> for DbSkillOperator {
