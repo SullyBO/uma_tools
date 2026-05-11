@@ -90,6 +90,10 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
 
     let ingame_description = item["desc_en"].as_str().unwrap_or("").to_string();
 
+    let condition_groups = item
+        .pointer("/loc/en/condition_groups")
+        .unwrap_or(&item["condition_groups"]);
+
     let icon_id = item["iconid"]
         .as_u64()
         .ok_or_else(|| ScraperError::MissingField(format!("iconid for skill {}", id.0)))?
@@ -100,7 +104,7 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
     })?;
 
     let sp_cost = item["cost"].as_u64().unwrap_or(0) as u32;
-    let effects = parse_effects(item, id)?;
+    let effects = parse_effects(condition_groups, id)?;
 
     Ok(Skill {
         id,
@@ -114,8 +118,8 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
     })
 }
 
-fn parse_effects(item: &Value, skill_id: SkillId) -> ScraperResult<Vec<Effect>> {
-    let Some(groups) = item["condition_groups"].as_array() else {
+fn parse_effects(condition_groups: &Value, skill_id: SkillId) -> ScraperResult<Vec<Effect>> {
+    let Some(groups) = condition_groups.as_array() else {
         return Ok(Vec::new());
     };
 
