@@ -104,7 +104,11 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
     })?;
 
     let sp_cost = item["cost"].as_u64().unwrap_or(0) as u32;
-    let effects = parse_effects(condition_groups, id)?;
+
+    let effects = condition_groups
+        .as_array()
+        .map(|groups| groups.iter().map(|cg| parse_effect(cg, id)).collect())
+        .unwrap_or(Ok(Vec::new()))?;
 
     Ok(Skill {
         id,
@@ -118,18 +122,7 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
     })
 }
 
-fn parse_effects(condition_groups: &Value, skill_id: SkillId) -> ScraperResult<Vec<Effect>> {
-    let Some(groups) = condition_groups.as_array() else {
-        return Ok(Vec::new());
-    };
-
-    groups
-        .iter()
-        .map(|cg| parse_effect_group(cg, skill_id))
-        .collect()
-}
-
-fn parse_effect_group(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
+fn parse_effect(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
     let effects = cg["effects"]
         .as_array()
         .into_iter()
@@ -204,9 +197,10 @@ fn parse_condition_string(s: &str, skill_id: SkillId) -> ScraperResult<Vec<Condi
 
     for (or_idx, or_group) in s.split('@').enumerate() {
         for (and_idx, part) in or_group.split('&').enumerate() {
-            let (cond_key, operator, cond_val) = parse_condition_part(part).ok_or_else(|| {
-                ScraperError::InvalidCondition(format!("'{part}' in skill {}", skill_id.0))
-            })?;
+            let (cond_key, operator, cond_val) =
+                parse_condition_operator(part).ok_or_else(|| {
+                    ScraperError::InvalidCondition(format!("'{part}' in skill {}", skill_id.0))
+                })?;
 
             let is_or = or_idx > 0 && and_idx == 0;
 
@@ -222,7 +216,7 @@ fn parse_condition_string(s: &str, skill_id: SkillId) -> ScraperResult<Vec<Condi
     Ok(conditions)
 }
 
-fn parse_condition_part(s: &str) -> Option<(String, Operator, String)> {
+fn parse_condition_operator(s: &str) -> Option<(String, Operator, String)> {
     let operators = [
         (">=", Operator::GtEq),
         ("<=", Operator::LtEq),
