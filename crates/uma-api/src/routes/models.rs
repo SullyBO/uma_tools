@@ -8,6 +8,12 @@ pub struct UmaIndex {
     pub version: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct SkillIndex {
+    pub id: i32,
+    pub name: String,
+}
+
 #[derive(Deserialize)]
 pub struct UmaQueryParams {
     pub turf: Option<DbAptitudeLevel>,
