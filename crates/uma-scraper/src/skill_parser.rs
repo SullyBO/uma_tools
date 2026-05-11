@@ -441,4 +441,29 @@ mod tests {
         let skills = parse_skill_roster(&json).unwrap();
         assert_eq!(skills.len(), 1);
     }
+
+    #[test]
+    fn prefers_en_loc_condition_groups() {
+        let mut item = valid_item();
+        item["loc"] = serde_json::json!({
+            "en": {
+                "condition_groups": [{
+                    "effects": [{"type": 27, "value": 1500}],
+                    "condition": "is_lastspurt==1",
+                    "precondition": ""
+                }]
+            }
+        });
+        let skill = parse_skill_item(&item).unwrap();
+        let conditions = &skill.effects[0].conditions;
+        assert_eq!(conditions.len(), 1);
+        assert_eq!(conditions[0].cond_key, "is_lastspurt");
+    }
+
+    #[test]
+    fn falls_back_to_top_level_condition_groups_when_no_en_loc() {
+        let item = valid_item(); // no loc field
+        let skill = parse_skill_item(&item).unwrap();
+        assert_eq!(skill.effects[0].conditions[0].cond_key, "distance_rate");
+    }
 }
