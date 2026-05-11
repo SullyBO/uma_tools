@@ -193,11 +193,20 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
 pub async fn get_umas(pool: &PgPool, filter: UmaFilter) -> Result<Vec<UmaSummaryRow>, sqlx::Error> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
         "SELECT id, name, subtitle,
-         apt_turf, apt_dirt,
-         apt_short, apt_mile, apt_medium, apt_long,
-         apt_front, apt_pace, apt_late, apt_end
-         FROM umas WHERE 1=1",
+        apt_turf, apt_dirt,
+        apt_short, apt_mile, apt_medium, apt_long,
+        apt_front, apt_pace, apt_late, apt_end,
+        release_date, is_predicted_date
+        FROM umas WHERE 1=1",
     );
+
+    if let Some(released) = filter.released {
+        if released {
+            qb.push(" AND release_date <= CURRENT_DATE");
+        } else {
+            qb.push(" AND release_date > CURRENT_DATE");
+        }
+    }
 
     if let Some(v) = filter.turf {
         qb.push(" AND apt_turf >= ");

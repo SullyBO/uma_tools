@@ -16,6 +16,7 @@ pub struct SkillIndex {
 
 #[derive(Deserialize)]
 pub struct UmaQueryParams {
+    pub released: Option<bool>,
     pub turf: Option<DbAptitudeLevel>,
     pub dirt: Option<DbAptitudeLevel>,
     pub short: Option<DbAptitudeLevel>,
@@ -43,6 +44,8 @@ pub struct UmaSummary {
     pub apt_pace: String,
     pub apt_late: String,
     pub apt_end: String,
+    pub release_date: String,
+    pub is_predicted_date: bool,
 }
 
 #[derive(Serialize)]
@@ -65,6 +68,8 @@ pub struct UmaDetail {
     pub growth_power: i32,
     pub growth_guts: i32,
     pub growth_wit: i32,
+    pub release_date: String,
+    pub is_predicted_date: bool,
     pub skills: Vec<UmaSkillEntry>,
 }
 

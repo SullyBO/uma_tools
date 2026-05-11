@@ -26,6 +26,7 @@ pub async fn list(
     Query(params): Query<UmaQueryParams>,
 ) -> Result<Json<Vec<UmaSummary>>, ApiError> {
     let filter = UmaFilter {
+        released: params.released,
         turf: params.turf,
         dirt: params.dirt,
         short: params.short,
@@ -56,6 +57,8 @@ pub async fn list(
             apt_pace: r.apt_pace.to_string(),
             apt_late: r.apt_late.to_string(),
             apt_end: r.apt_end.to_string(),
+            release_date: r.release_date.to_string(),
+            is_predicted_date: r.is_predicted_date,
         })
         .collect();
 
@@ -91,6 +94,8 @@ pub async fn detail(
         growth_power: uma.growth_power,
         growth_guts: uma.growth_guts,
         growth_wit: uma.growth_wit,
+        release_date: uma.release_date.to_string(),
+        is_predicted_date: uma.is_predicted_date,
         skills: skills
             .into_iter()
             .map(|s| UmaSkillEntry {

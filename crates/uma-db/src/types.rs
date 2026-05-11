@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use serde::Deserialize;
 use sqlx::Type;
 use std::fmt;
@@ -294,6 +295,7 @@ impl From<Operator> for DbSkillOperator {
 }
 
 pub struct UmaFilter {
+    pub released: Option<bool>,
     pub turf: Option<DbAptitudeLevel>,
     pub dirt: Option<DbAptitudeLevel>,
     pub short: Option<DbAptitudeLevel>,
@@ -326,6 +328,8 @@ pub struct UmaRow {
     pub growth_power: i32,
     pub growth_guts: i32,
     pub growth_wit: i32,
+    pub release_date: NaiveDate,
+    pub is_predicted_date: bool,
 }
 
 #[derive(sqlx::FromRow)]
@@ -343,6 +347,8 @@ pub struct UmaSummaryRow {
     pub apt_pace: DbAptitudeLevel,
     pub apt_late: DbAptitudeLevel,
     pub apt_end: DbAptitudeLevel,
+    pub release_date: NaiveDate,
+    pub is_predicted_date: bool,
 }
 
 #[derive(sqlx::FromRow)]
