@@ -9,6 +9,8 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
 
     let ids: Vec<i32> = umas.iter().map(|u| u.id.0 as i32).collect();
     let names: Vec<&str> = umas.iter().map(|u| u.name.as_str()).collect();
+    let release_dates: Vec<String> = umas.iter().map(|u| u.release_date.to_string()).collect();
+    let is_predicted_dates: Vec<bool> = umas.iter().map(|u| u.is_predicted_date).collect();
     let subtitles: Vec<&str> = umas.iter().map(|u| u.subtitle.as_str()).collect();
     let rarities: Vec<DbUmaRarity> = umas.iter().map(|u| DbUmaRarity::from(u.rarity)).collect();
     let stat_speeds: Vec<i32> = umas.iter().map(|u| u.base_stats.speed as i32).collect();
@@ -64,47 +66,51 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
 
     sqlx::query!(
         r#"
-        INSERT INTO umas (
-            id, name, subtitle, rarity,
-            stat_speed, stat_stamina, stat_power, stat_guts, stat_wit,
-            growth_speed, growth_stamina, growth_power, growth_guts, growth_wit,
-            apt_turf, apt_dirt,
-            apt_short, apt_mile, apt_medium, apt_long,
-            apt_front, apt_pace, apt_late, apt_end
-        )
-        SELECT * FROM UNNEST(
-            $1::int[], $2::text[], $3::text[], $4::uma_rarity[],
-            $5::int[], $6::int[], $7::int[], $8::int[], $9::int[],
-            $10::int[], $11::int[], $12::int[], $13::int[], $14::int[],
-            $15::aptitude_level[], $16::aptitude_level[],
-            $17::aptitude_level[], $18::aptitude_level[], $19::aptitude_level[], $20::aptitude_level[],
-            $21::aptitude_level[], $22::aptitude_level[], $23::aptitude_level[], $24::aptitude_level[]
-        )
-        ON CONFLICT (id) DO UPDATE SET
-            name = EXCLUDED.name,
-            subtitle = EXCLUDED.subtitle,
-            rarity = EXCLUDED.rarity,
-            stat_speed = EXCLUDED.stat_speed,
-            stat_stamina = EXCLUDED.stat_stamina,
-            stat_power = EXCLUDED.stat_power,
-            stat_guts = EXCLUDED.stat_guts,
-            stat_wit = EXCLUDED.stat_wit,
-            growth_speed = EXCLUDED.growth_speed,
-            growth_stamina = EXCLUDED.growth_stamina,
-            growth_power = EXCLUDED.growth_power,
-            growth_guts = EXCLUDED.growth_guts,
-            growth_wit = EXCLUDED.growth_wit,
-            apt_turf = EXCLUDED.apt_turf,
-            apt_dirt = EXCLUDED.apt_dirt,
-            apt_short = EXCLUDED.apt_short,
-            apt_mile = EXCLUDED.apt_mile,
-            apt_medium = EXCLUDED.apt_medium,
-            apt_long = EXCLUDED.apt_long,
-            apt_front = EXCLUDED.apt_front,
-            apt_pace = EXCLUDED.apt_pace,
-            apt_late = EXCLUDED.apt_late,
-            apt_end = EXCLUDED.apt_end
-        "#,
+    INSERT INTO umas (
+        id, name, subtitle, rarity,
+        stat_speed, stat_stamina, stat_power, stat_guts, stat_wit,
+        growth_speed, growth_stamina, growth_power, growth_guts, growth_wit,
+        apt_turf, apt_dirt,
+        apt_short, apt_mile, apt_medium, apt_long,
+        apt_front, apt_pace, apt_late, apt_end,
+        release_date, is_predicted_date
+    )
+    SELECT * FROM UNNEST(
+        $1::int[], $2::text[], $3::text[], $4::uma_rarity[],
+        $5::int[], $6::int[], $7::int[], $8::int[], $9::int[],
+        $10::int[], $11::int[], $12::int[], $13::int[], $14::int[],
+        $15::aptitude_level[], $16::aptitude_level[],
+        $17::aptitude_level[], $18::aptitude_level[], $19::aptitude_level[], $20::aptitude_level[],
+        $21::aptitude_level[], $22::aptitude_level[], $23::aptitude_level[], $24::aptitude_level[],
+        $25::date[], $26::bool[]
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        subtitle = EXCLUDED.subtitle,
+        rarity = EXCLUDED.rarity,
+        stat_speed = EXCLUDED.stat_speed,
+        stat_stamina = EXCLUDED.stat_stamina,
+        stat_power = EXCLUDED.stat_power,
+        stat_guts = EXCLUDED.stat_guts,
+        stat_wit = EXCLUDED.stat_wit,
+        growth_speed = EXCLUDED.growth_speed,
+        growth_stamina = EXCLUDED.growth_stamina,
+        growth_power = EXCLUDED.growth_power,
+        growth_guts = EXCLUDED.growth_guts,
+        growth_wit = EXCLUDED.growth_wit,
+        apt_turf = EXCLUDED.apt_turf,
+        apt_dirt = EXCLUDED.apt_dirt,
+        apt_short = EXCLUDED.apt_short,
+        apt_mile = EXCLUDED.apt_mile,
+        apt_medium = EXCLUDED.apt_medium,
+        apt_long = EXCLUDED.apt_long,
+        apt_front = EXCLUDED.apt_front,
+        apt_pace = EXCLUDED.apt_pace,
+        apt_late = EXCLUDED.apt_late,
+        apt_end = EXCLUDED.apt_end,
+        release_date = EXCLUDED.release_date,
+        is_predicted_date = EXCLUDED.is_predicted_date
+    "#,
         &ids,
         &names as &[&str],
         &subtitles as &[&str],
@@ -129,6 +135,8 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
         &apt_paces as &[DbAptitudeLevel],
         &apt_lates as &[DbAptitudeLevel],
         &apt_ends as &[DbAptitudeLevel],
+        &release_dates as &[String],
+        &is_predicted_dates,
     )
     .execute(pool)
     .await?;
@@ -154,10 +162,10 @@ pub async fn upsert_all_uma(pool: &PgPool, umas: &[Uma]) -> Result<(), sqlx::Err
     if !uma_ids.is_empty() {
         let result = sqlx::query!(
             r#"
-INSERT INTO uma_skills (uma_id, skill_id, acquisition, evolved_from)
-SELECT * FROM UNNEST($1::int[], $2::int[], $3::skill_acquisition[], $4::int[])
-ON CONFLICT (uma_id, skill_id, acquisition) DO UPDATE SET
-    evolved_from = EXCLUDED.evolved_from
+        INSERT INTO uma_skills (uma_id, skill_id, acquisition, evolved_from)
+        SELECT * FROM UNNEST($1::int[], $2::int[], $3::skill_acquisition[], $4::int[])
+        ON CONFLICT (uma_id, skill_id, acquisition) DO UPDATE SET
+            evolved_from = EXCLUDED.evolved_from
             "#,
             &uma_ids,
             &skill_ids,

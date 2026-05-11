@@ -1,5 +1,6 @@
 use crate::ids::UmaId;
 use crate::uma_skill::UmaSkill;
+use chrono::NaiveDate;
 use std::fmt::Display;
 
 #[derive(Debug)]
@@ -12,6 +13,8 @@ pub struct Uma {
     pub growth_rates: GrowthRates,
     pub aptitudes: Aptitudes,
     pub skill_list: Vec<UmaSkill>,
+    pub release_date: NaiveDate,
+    pub is_predicted_date: bool,
 }
 
 #[derive(Debug, Copy, Clone)]

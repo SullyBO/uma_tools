@@ -1,7 +1,8 @@
 use crate::AppState;
 use crate::error::ApiError;
 use crate::routes::models::{
-    SkillCondition, SkillDetail, SkillEffect, SkillIndex, SkillQueryParams, SkillSummary, SkillTrigger
+    SkillCondition, SkillDetail, SkillEffect, SkillIndex, SkillQueryParams, SkillSummary,
+    SkillTrigger,
 };
 use axum::{
     Json,
@@ -11,12 +12,9 @@ use uma_db::skill_repo::{get_skill_by_id, get_skills};
 use uma_db::types::SkillFilter;
 
 pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<SkillIndex>>, ApiError> {
-    let rows = sqlx::query_as!(
-        SkillIndex,
-        "SELECT id, name FROM skills ORDER BY name"
-    )
-    .fetch_all(&*state.pool)
-    .await?;
+    let rows = sqlx::query_as!(SkillIndex, "SELECT id, name FROM skills ORDER BY name")
+        .fetch_all(&*state.pool)
+        .await?;
 
     Ok(Json(rows))
 }

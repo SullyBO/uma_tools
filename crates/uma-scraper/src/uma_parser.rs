@@ -1,7 +1,7 @@
 use crate::client::ScraperClient;
 use crate::error::{ScraperError, ScraperResult};
-use crate::url_resolver::resolve_uma_url;
-use chrono::{DateTime, Utc};
+use crate::url_resolver::{resolve_predicted_release_dates_url, resolve_uma_url};
+use chrono::NaiveDate;
 use log::info;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -15,25 +15,65 @@ use uma_core::{
 };
 
 pub async fn fetch_uma_roster(client: &ScraperClient) -> ScraperResult<Vec<Uma>> {
+    let predicted_dates = fetch_predicted_release_dates(client).await?;
     let url = resolve_uma_url(client).await?;
     let json = client.fetch(&url).await?;
-    parse_uma_roster(&json)
+    parse_uma_roster(&json, &predicted_dates)
 }
 
-fn parse_uma_roster(json: &str) -> ScraperResult<Vec<Uma>> {
-    let now = Utc::now();
+pub async fn fetch_predicted_release_dates(
+    client: &ScraperClient,
+) -> ScraperResult<HashMap<UmaId, NaiveDate>> {
+    let url = resolve_predicted_release_dates_url(client).await?;
+    let json = client.fetch(&url).await?;
+    parse_predicted_release_dates(&json)
+}
+
+fn parse_predicted_release_dates(json: &str) -> ScraperResult<HashMap<UmaId, NaiveDate>> {
+    let root: Value = serde_json::from_str(json).map_err(|e| {
+        ScraperError::JsonError(format!("failed to parse predicted release dates JSON: {e}"))
+    })?;
+
+    let char_cards = root["char_cards"]
+        .as_object()
+        .ok_or_else(|| ScraperError::MissingField("char_cards".into()))?;
+
+    let mut map = HashMap::new();
+
+    for (id_str, entry) in char_cards {
+        let id = id_str.parse::<u32>().map(UmaId).map_err(|_| {
+            ScraperError::UnknownValue(format!("non-numeric char_cards key: {id_str}"))
+        })?;
+
+        let date_str = entry["release_date"]
+            .as_str()
+            .ok_or_else(|| ScraperError::MissingField(format!("release_date for {id_str}")))?;
+
+        let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|e| {
+            ScraperError::InvalidDate(format!("invalid release_date for {id_str}: {e}"))
+        })?;
+
+        map.insert(id, date);
+    }
+
+    Ok(map)
+}
+
+fn parse_uma_roster(
+    json: &str,
+    predicted_dates: &HashMap<UmaId, NaiveDate>,
+) -> ScraperResult<Vec<Uma>> {
     let items: Vec<Value> = serde_json::from_str(json).map_err(|e| {
         ScraperError::JsonError(format!("failed to parse character cards JSON: {e}"))
     })?;
 
     let mut umas = Vec::new();
-    let mut skipped_jp = 0usize;
     let mut skip_reasons: HashMap<&str, usize> = HashMap::new();
 
     for item in &items {
-        match parse_uma(item, now) {
+        match parse_uma(item, predicted_dates) {
             Ok(Some(uma)) => umas.push(uma),
-            Ok(None) => skipped_jp += 1,
+            Ok(None) => {}
             Err(e) => {
                 let id = item["card_id"].as_u64().unwrap_or(0);
                 let reason = match &e {
@@ -53,10 +93,9 @@ fn parse_uma_roster(json: &str) -> ScraperResult<Vec<Uma>> {
     let skipped_parse = skip_reasons.values().sum::<usize>();
 
     info!(
-        "Character roster parsing complete: {} parsed, {} skipped (JP-only: {}) out of {} total",
+        "Character roster parsing complete: {} parsed, {} skipped out of {} total",
         umas.len(),
-        skipped_jp + skipped_parse,
-        skipped_jp,
+        skipped_parse,
         items.len()
     );
 
@@ -72,29 +111,18 @@ fn parse_uma_roster(json: &str) -> ScraperResult<Vec<Uma>> {
     Ok(umas)
 }
 
-fn parse_uma(item: &Value, now: DateTime<Utc>) -> ScraperResult<Option<Uma>> {
-    let release_en = item["release_en"].as_str();
-
-    match release_en {
-        None => return Ok(None),
-        Some(date_str) => {
-            let release_date = DateTime::parse_from_str(
-                &format!("{date_str}T00:00:00+00:00"),
-                "%Y-%m-%dT%H:%M:%S%z",
-            )
-            .map_err(|e| ScraperError::InvalidDate(format!("invalid release_en date: {e}")))?
-            .with_timezone(&Utc);
-
-            if release_date > now {
-                return Ok(None);
-            }
-        }
-    }
-
+fn parse_uma(
+    item: &Value,
+    predicted_dates: &HashMap<UmaId, NaiveDate>,
+) -> ScraperResult<Option<Uma>> {
     let id = item["card_id"]
         .as_u64()
         .ok_or_else(|| ScraperError::MissingField("card_id".into()))
         .map(|n| UmaId(n as u32))?;
+
+    let Some((release_date, is_predicted_date)) = parse_release(item, id, predicted_dates)? else {
+        return Ok(None);
+    };
 
     let name = item["name_en"]
         .as_str()
@@ -109,7 +137,7 @@ fn parse_uma(item: &Value, now: DateTime<Utc>) -> ScraperResult<Option<Uma>> {
     let aptitudes = parse_aptitudes(&item["aptitude"])?;
     let skill_list = parse_uma_skills(item)?;
 
-    let uma = Uma {
+    Ok(Some(Uma {
         id,
         name,
         subtitle,
@@ -118,9 +146,27 @@ fn parse_uma(item: &Value, now: DateTime<Utc>) -> ScraperResult<Option<Uma>> {
         growth_rates,
         aptitudes,
         skill_list,
-    };
+        release_date,
+        is_predicted_date,
+    }))
+}
 
-    Ok(Some(uma))
+fn parse_release(
+    item: &Value,
+    id: UmaId,
+    predicted_dates: &HashMap<UmaId, NaiveDate>,
+) -> ScraperResult<Option<(NaiveDate, bool)>> {
+    match item["release_en"].as_str() {
+        Some(date_str) => {
+            let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                .map_err(|e| ScraperError::InvalidDate(format!("invalid release_en date: {e}")))?;
+            Ok(Some((date, false)))
+        }
+        None => match predicted_dates.get(&id) {
+            Some(&date) => Ok(Some((date, true))),
+            None => Ok(None),
+        },
+    }
 }
 
 fn parse_rarity(value: &Value) -> ScraperResult<Rarity> {
@@ -279,11 +325,15 @@ fn parse_uma_skills(item: &Value) -> ScraperResult<Vec<UmaSkill>> {
 mod tests {
     use super::*;
 
+    fn no_predicted_dates() -> HashMap<UmaId, NaiveDate> {
+        HashMap::new()
+    }
+
     fn valid_item() -> serde_json::Value {
         serde_json::json!({
             "card_id": 102001,
             "name_en": "Seiun Sky",
-            "title_en_gl": "[Reeling in the Big One]",
+            "version": "default",
             "rarity": 3,
             "base_stats": [98, 98, 88, 83, 83],
             "stat_bonus": [20, 0, 10, 0, 20],
@@ -302,14 +352,13 @@ mod tests {
 
     #[test]
     fn parses_valid_item() {
-        let now = DateTime::parse_from_rfc3339("2026-01-01T00:00:00+00:00")
+        let uma = parse_uma(&valid_item(), &no_predicted_dates())
             .unwrap()
-            .with_timezone(&Utc);
-        let uma = parse_uma(&valid_item(), now).unwrap().unwrap();
+            .unwrap();
 
         assert_eq!(uma.id, UmaId(102001));
         assert_eq!(uma.name, "Seiun Sky");
-        assert_eq!(uma.subtitle, "[Reeling in the Big One]");
+        assert_eq!(uma.subtitle, "default");
         assert!(matches!(uma.rarity, Rarity::SSR));
         assert_eq!(uma.base_stats.speed, 98);
         assert_eq!(uma.base_stats.stamina, 98);
@@ -327,33 +376,47 @@ mod tests {
         assert!(matches!(uma.aptitudes.distance.mile, AptitudeLevel::C));
         assert!(matches!(uma.aptitudes.strategy.front, AptitudeLevel::A));
         assert!(matches!(uma.aptitudes.strategy.end, AptitudeLevel::E));
-        assert_eq!(uma.skill_list.len(), 8); // 1 unique + 2 innate + 1 awakening + 2 event + 2 evo
+        assert_eq!(uma.skill_list.len(), 8);
+        assert!(!uma.is_predicted_date);
     }
 
     #[test]
-    fn skips_jp_only_no_release_en() {
+    fn skips_when_no_release_en_and_no_predicted_date() {
         let mut item = valid_item();
         item.as_object_mut().unwrap().remove("release_en");
-        let now = Utc::now();
-        let result = parse_uma(&item, now).unwrap();
+        let result = parse_uma(&item, &no_predicted_dates()).unwrap();
         assert!(result.is_none());
     }
 
     #[test]
-    fn skips_unreleased() {
+    fn uses_predicted_date_when_no_release_en() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("release_en");
+        let date = NaiveDate::from_ymd_opt(2025, 6, 26).unwrap();
+        let mut predicted = HashMap::new();
+        predicted.insert(UmaId(102001), date);
+        let uma = parse_uma(&item, &predicted).unwrap().unwrap();
+        assert_eq!(uma.release_date, date);
+        assert!(uma.is_predicted_date);
+    }
+
+    #[test]
+    fn stores_future_release_en_date() {
         let mut item = valid_item();
         item["release_en"] = serde_json::json!("2099-01-01");
-        let now = Utc::now();
-        let result = parse_uma(&item, now).unwrap();
-        assert!(result.is_none());
+        let uma = parse_uma(&item, &no_predicted_dates()).unwrap().unwrap();
+        assert_eq!(
+            uma.release_date,
+            NaiveDate::from_ymd_opt(2099, 1, 1).unwrap()
+        );
+        assert!(!uma.is_predicted_date);
     }
 
     #[test]
     fn errors_on_invalid_rarity() {
         let mut item = valid_item();
         item["rarity"] = serde_json::json!(99);
-        let now = Utc::now();
-        let result = parse_uma(&item, now);
+        let result = parse_uma(&item, &no_predicted_dates());
         assert!(matches!(result, Err(ScraperError::UnknownValue(_))));
     }
 
@@ -361,8 +424,7 @@ mod tests {
     fn errors_on_short_base_stats() {
         let mut item = valid_item();
         item["base_stats"] = serde_json::json!([98, 98, 88]);
-        let now = Utc::now();
-        let result = parse_uma(&item, now);
+        let result = parse_uma(&item, &no_predicted_dates());
         assert!(matches!(result, Err(ScraperError::InvalidShape(_))));
     }
 
@@ -370,8 +432,7 @@ mod tests {
     fn errors_on_short_aptitude() {
         let mut item = valid_item();
         item["aptitude"] = serde_json::json!(["A", "B", "C"]);
-        let now = Utc::now();
-        let result = parse_uma(&item, now);
+        let result = parse_uma(&item, &no_predicted_dates());
         assert!(matches!(result, Err(ScraperError::InvalidShape(_))));
     }
 
@@ -380,26 +441,23 @@ mod tests {
         let mut item = valid_item();
         item.as_object_mut().unwrap().remove("skills_event");
         item.as_object_mut().unwrap().remove("skills_awakening");
-        let now = Utc::now();
-        let uma = parse_uma(&item, now).unwrap().unwrap();
-        assert_eq!(uma.skill_list.len(), 5); // 1 unique + 2 innate + 2 evo
+        let uma = parse_uma(&item, &no_predicted_dates()).unwrap().unwrap();
+        assert_eq!(uma.skill_list.len(), 5);
     }
 
     #[test]
     fn errors_on_short_stat_bonus() {
         let mut item = valid_item();
         item["stat_bonus"] = serde_json::json!([20, 0, 10]);
-        let now = Utc::now();
-        let result = parse_uma(&item, now);
+        let result = parse_uma(&item, &no_predicted_dates());
         assert!(matches!(result, Err(ScraperError::InvalidShape(_))));
     }
 
     #[test]
     fn parses_evolution_skills() {
-        let now = DateTime::parse_from_rfc3339("2026-01-01T00:00:00+00:00")
+        let uma = parse_uma(&valid_item(), &no_predicted_dates())
             .unwrap()
-            .with_timezone(&Utc);
-        let uma = parse_uma(&valid_item(), now).unwrap().unwrap();
+            .unwrap();
 
         let evo_skills: Vec<_> = uma
             .skill_list
