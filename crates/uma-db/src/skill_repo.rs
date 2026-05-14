@@ -3,7 +3,7 @@ use crate::types::{
     SkillFilter, SkillRow, TriggerRow,
 };
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use uma_core::models::skill::{ConditionType, Skill};
+use uma_core::models::skill::{ConditionType, Duration, Skill};
 
 pub async fn upsert_all_condition_types(
     pool: &PgPool,
@@ -92,17 +92,26 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
         .flat_map(|s| s.effects.iter().map(move |_| s.id.0 as i32))
         .collect();
 
+    let trigger_durations: Vec<Option<f32>> = skills
+        .iter()
+        .flat_map(|s| s.effects.iter().map(|e| match e.duration {
+            Duration::Timed(v) => Some(v),
+            Duration::Infinite => None,
+        }))
+        .collect();
+
     if trigger_skill_ids.is_empty() {
         return Ok(());
     }
 
     let trigger_ids = sqlx::query!(
         r#"
-        INSERT INTO skill_triggers (skill_id)
-        SELECT * FROM UNNEST($1::int[])
+        INSERT INTO skill_triggers (skill_id, duration)
+        SELECT * FROM UNNEST($1::int[], $2::real[])
         RETURNING id
         "#,
         &trigger_skill_ids,
+        &trigger_durations as &[Option<f32>],
     )
     .fetch_all(pool)
     .await?
@@ -246,9 +255,12 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
         return Ok(None);
     };
 
-    let trigger_records = sqlx::query!("SELECT id FROM skill_triggers WHERE skill_id = $1", id)
-        .fetch_all(pool)
-        .await?;
+    let trigger_records = sqlx::query!(
+        "SELECT id, duration FROM skill_triggers WHERE skill_id = $1",
+        id
+    )
+    .fetch_all(pool)
+    .await?;
 
     if trigger_records.is_empty() {
         return Ok(Some(SkillDetail {
@@ -278,12 +290,12 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
     .fetch_all(pool)
     .await?;
 
-    let triggers = trigger_ids
+    let triggers = trigger_records
         .iter()
-        .map(|&tid| {
+        .map(|t| {
             let effects = all_effects
                 .iter()
-                .filter(|e| e.trigger_id == tid)
+                .filter(|e| e.trigger_id == t.id)
                 .map(|e| EffectRow {
                     trigger_id: e.trigger_id,
                     effect_type: e.effect_type.clone(),
@@ -293,7 +305,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
 
             let (preconditions, conditions) = all_conditions
                 .iter()
-                .filter(|c| c.trigger_id == tid)
+                .filter(|c| c.trigger_id == t.id)
                 .partition::<Vec<_>, _>(|c| c.is_precondition);
 
             let conditions: Vec<ConditionRow> = conditions
@@ -317,7 +329,8 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
                 .collect();
 
             TriggerRow {
-                id: tid,
+                id: t.id,
+                duration: t.duration,
                 effects,
                 conditions,
                 preconditions,

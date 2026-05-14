@@ -386,6 +386,7 @@ pub struct SkillDetail {
 
 pub struct TriggerRow {
     pub id: i32,
+    pub duration: Option<f32>,
     pub effects: Vec<EffectRow>,
     pub conditions: Vec<ConditionRow>,
     pub preconditions: Vec<ConditionRow>,
