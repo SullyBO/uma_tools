@@ -40,13 +40,6 @@ pub enum Rarity {
     Evolution,
 }
 
-#[derive(Debug)]
-pub struct Effect {
-    pub effects: Vec<EffectType>,
-    pub conditions: Vec<Condition>,
-    pub preconditions: Vec<Condition>,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub enum Operator {
     Eq,
@@ -191,4 +184,18 @@ impl std::fmt::Display for EffectType {
             Self::ActivateRelatedSkillsOnAllUma => write!(f, "Activate Related Skills on All Uma"),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct Effect {
+    pub duration: Duration,
+    pub effects: Vec<EffectType>,
+    pub conditions: Vec<Condition>,
+    pub preconditions: Vec<Condition>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Duration {
+    Timed(f32),
+    Infinite,
 }

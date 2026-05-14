@@ -5,6 +5,7 @@ use crate::url_resolver::resolve_skills_url;
 use log::info;
 use serde_json::Value;
 use std::collections::HashMap;
+use uma_core::models::skill::Duration;
 use uma_core::{
     ids::SkillId,
     models::skill::{Condition, Effect, EffectType, Operator, Rarity, Skill},
@@ -123,6 +124,16 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
 }
 
 fn parse_effect(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
+    let base_time = cg["base_time"]
+        .as_i64()
+        .ok_or_else(|| ScraperError::MissingField(format!("base_time in skill {}", skill_id.0)))?;
+
+    let duration = if base_time == -1 {
+        Duration::Infinite
+    } else {
+        Duration::Timed(base_time as f32 / 10000.0)
+    };
+
     let effects = cg["effects"]
         .as_array()
         .into_iter()
@@ -167,6 +178,7 @@ fn parse_effect(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
         parse_condition_string(cg["precondition"].as_str().unwrap_or(""), skill_id)?;
 
     Ok(Effect {
+        duration,
         effects,
         conditions,
         preconditions,
@@ -253,6 +265,7 @@ mod tests {
             "cost": 200,
             "condition_groups": [
                 {
+                    "base_time": 50000,
                     "effects": [
                         {"type": 27, "value": 4500},
                         {"type": 31, "value": 2000}
@@ -262,6 +275,35 @@ mod tests {
                 }
             ]
         })
+    }
+
+    #[test]
+    fn parses_timed_duration() {
+        let skill = parse_skill_item(&valid_item()).unwrap();
+        assert!(
+            matches!(skill.effects[0].duration, Duration::Timed(v) if (v - 5.0).abs() < f32::EPSILON)
+        );
+    }
+
+    #[test]
+    fn parses_infinite_duration() {
+        let mut item = valid_item();
+        item["condition_groups"][0]["base_time"] = serde_json::json!(-1);
+        let skill = parse_skill_item(&item).unwrap();
+        assert!(matches!(skill.effects[0].duration, Duration::Infinite));
+    }
+
+    #[test]
+    fn errors_on_missing_base_time() {
+        let mut item = valid_item();
+        item["condition_groups"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("base_time");
+        assert!(matches!(
+            parse_skill_item(&item),
+            Err(ScraperError::MissingField(_))
+        ));
     }
 
     #[test]
