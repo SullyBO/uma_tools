@@ -74,6 +74,7 @@ pub async fn detail(
             .into_iter()
             .map(|t| SkillTrigger {
                 id: t.id,
+                duration: t.duration,
                 effects: t
                     .effects
                     .into_iter()

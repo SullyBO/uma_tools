@@ -94,10 +94,12 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
 
     let trigger_durations: Vec<Option<f32>> = skills
         .iter()
-        .flat_map(|s| s.effects.iter().map(|e| match e.duration {
-            Duration::Timed(v) => Some(v),
-            Duration::Infinite => None,
-        }))
+        .flat_map(|s| {
+            s.effects.iter().map(|e| match e.duration {
+                Duration::Timed(v) => Some(v),
+                Duration::Infinite => None,
+            })
+        })
         .collect();
 
     if trigger_skill_ids.is_empty() {

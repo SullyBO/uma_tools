@@ -116,6 +116,7 @@ pub struct SkillDetail {
 #[derive(Serialize)]
 pub struct SkillTrigger {
     pub id: i32,
+    pub duration: Option<f32>,
     pub effects: Vec<SkillEffect>,
     pub conditions: Vec<SkillCondition>,
     pub preconditions: Vec<SkillCondition>,
