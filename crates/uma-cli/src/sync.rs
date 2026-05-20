@@ -1,7 +1,13 @@
 use uma_db::db::Db as database;
 use uma_scraper::{
-    client::ScraperClient, skill_condition_type_parser::fetch_skill_condition_types,
-    skill_parser::fetch_skill_roster, uma_parser::fetch_uma_roster,
+    client::ScraperClient,
+    parsers::{
+        skills::{
+            skill_condition_type_parser::fetch_skill_condition_types,
+            skill_parser::fetch_skill_roster,
+        },
+        uma_parser::fetch_uma_roster,
+    },
 };
 
 pub async fn sync_skills(db: &database) {

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 mod sync;
-use sync::{sync_conditions, sync_skills, sync_uma};
+use sync::{sync_cards, sync_conditions, sync_skills, sync_uma};
 
 /// To run the CLI simply `cargo run -p uma_cli -- {COMMAND} {SUBCOMMAND}`
 #[derive(Parser)]
@@ -23,6 +23,7 @@ enum SyncTarget {
     Skills,
     Uma,
     All,
+    Cards,
 }
 
 #[tokio::main]
@@ -49,10 +50,12 @@ async fn main() {
                 sync_skills(&db).await
             }
             SyncTarget::Uma => sync_uma(&db).await,
+            SyncTarget::Cards => sync_cards(&db).await,
             SyncTarget::All => {
                 sync_skills(&db).await;
                 sync_conditions(&db).await;
                 sync_uma(&db).await;
+                sync_cards(&db).await;
             }
         },
     }

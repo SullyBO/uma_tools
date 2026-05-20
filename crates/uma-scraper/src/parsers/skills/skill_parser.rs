@@ -1,6 +1,6 @@
+use super::icon_category::icon_id_to_category;
 use crate::client::ScraperClient;
 use crate::error::{ScraperError, ScraperResult};
-use crate::icon_category::icon_id_to_category;
 use crate::url_resolver::resolve_skills_url;
 use log::info;
 use serde_json::Value;
