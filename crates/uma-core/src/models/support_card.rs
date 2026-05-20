@@ -1,4 +1,4 @@
-use crate::ids::SupportCardId;
+use crate::{ids::SupportCardId, support_card_skill::SupportCardSkill};
 use chrono::NaiveDate;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -10,10 +10,11 @@ pub struct SupportCard {
     pub card_type: CardType,
     pub rarity: Rarity,
     pub is_welfare: bool,
-    pub release_en: Option<NaiveDate>,
+    pub release_date: Option<NaiveDate>,
     pub is_predicted_date: bool,
     pub unique_effect: Option<String>,
     pub effects: Vec<EffectValue>,
+    pub skills: Vec<SupportCardSkill>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
