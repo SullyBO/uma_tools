@@ -38,3 +38,7 @@ pub async fn resolve_predicted_release_dates_url(client: &ScraperClient) -> Scra
     )
     .await
 }
+
+pub async fn resolve_support_cards_url(client: &ScraperClient) -> ScraperResult<String> {
+    resolve_url(client, "support-cards", "support-cards").await
+}
