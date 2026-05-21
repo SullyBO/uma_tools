@@ -102,18 +102,24 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
         })
         .collect();
 
+    let trigger_scalings: Vec<Option<&str>> = skills
+        .iter()
+        .flat_map(|s| s.effects.iter().map(|e| e.scaling.as_deref()))
+        .collect();
+
     if trigger_skill_ids.is_empty() {
         return Ok(());
     }
 
     let trigger_ids = sqlx::query!(
         r#"
-        INSERT INTO skill_triggers (skill_id, duration)
-        SELECT * FROM UNNEST($1::int[], $2::real[])
+        INSERT INTO skill_triggers (skill_id, duration, scaling)
+        SELECT * FROM UNNEST($1::int[], $2::real[], $3::text[])
         RETURNING id
         "#,
         &trigger_skill_ids,
         &trigger_durations as &[Option<f32>],
+        &trigger_scalings as &[Option<&str>],
     )
     .fetch_all(pool)
     .await?
@@ -258,7 +264,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
     };
 
     let trigger_records = sqlx::query!(
-        "SELECT id, duration FROM skill_triggers WHERE skill_id = $1",
+        "SELECT id, duration, scaling FROM skill_triggers WHERE skill_id = $1",
         id
     )
     .fetch_all(pool)
@@ -333,6 +339,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
             TriggerRow {
                 id: t.id,
                 duration: t.duration,
+                scaling: t.scaling.clone(),
                 effects,
                 conditions,
                 preconditions,
