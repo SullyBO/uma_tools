@@ -189,6 +189,7 @@ impl std::fmt::Display for EffectType {
 #[derive(Debug)]
 pub struct Effect {
     pub duration: Duration,
+    pub scaling: Option<String>,
     pub effects: Vec<EffectType>,
     pub conditions: Vec<Condition>,
     pub preconditions: Vec<Condition>,

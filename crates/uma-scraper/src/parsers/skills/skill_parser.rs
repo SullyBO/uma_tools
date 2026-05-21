@@ -1,3 +1,4 @@
+use super::effect_parser::parse_effect;
 use super::icon_category::icon_id_to_category;
 use crate::client::ScraperClient;
 use crate::error::{ScraperError, ScraperResult};
@@ -5,10 +6,9 @@ use crate::url_resolver::resolve_skills_url;
 use log::info;
 use serde_json::Value;
 use std::collections::HashMap;
-use uma_core::models::skill::Duration;
 use uma_core::{
     ids::SkillId,
-    models::skill::{Condition, Effect, EffectType, Operator, Rarity, Skill},
+    models::skill::{Rarity, Skill},
 };
 
 pub async fn fetch_skill_roster(client: &ScraperClient) -> ScraperResult<Vec<Skill>> {
@@ -123,68 +123,6 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
     })
 }
 
-fn parse_effect(cg: &Value, skill_id: SkillId) -> ScraperResult<Effect> {
-    let base_time = cg["base_time"]
-        .as_i64()
-        .ok_or_else(|| ScraperError::MissingField(format!("base_time in skill {}", skill_id.0)))?;
-
-    let duration = if base_time == -1 {
-        Duration::Infinite
-    } else {
-        Duration::Timed(base_time as f32 / 10000.0)
-    };
-
-    let effects = cg["effects"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|e| {
-            let type_id = e["type"].as_u64()?;
-            let raw = e["value"].as_f64().unwrap_or(0.0);
-            let scale = |divisor: f64| (raw / divisor) as f32;
-
-            match type_id {
-                1 => Some(EffectType::SpeedUp(scale(10000.0))),
-                2 => Some(EffectType::StaminaUp(scale(10000.0))),
-                3 => Some(EffectType::PowerUp(scale(10000.0))),
-                4 => Some(EffectType::GutsUp(scale(10000.0))),
-                5 => Some(EffectType::WitUp(scale(10000.0))),
-                6 => Some(EffectType::RunawaySkill),
-                8 => Some(EffectType::FieldOfViewUp(scale(10000.0))),
-                9 => Some(EffectType::StaminaRecovery(scale(1000.0))),
-                10 => Some(EffectType::StartReactionImprovement(scale(10000.0))),
-                13 => Some(EffectType::RushTimeIncrease(scale(10000.0))),
-                14 => Some(EffectType::StartDelayAdded(scale(10000.0))),
-                21 => Some(EffectType::CurrentSpeedDown(scale(10000.0))),
-                22 => Some(EffectType::CurrentSpeedUp(scale(10000.0))),
-                27 => Some(EffectType::TargetSpeedUp(scale(10000.0))),
-                28 => Some(EffectType::LaneChangeSpeed(scale(1000.0))),
-                29 => Some(EffectType::RushChanceDecrease(scale(10000.0))),
-                31 => Some(EffectType::AccelerationUp(scale(10000.0))),
-                32 => Some(EffectType::AllStatsUp(scale(10000.0))),
-                35 => Some(EffectType::ChangeLane(scale(100.0))),
-                37 => Some(EffectType::UseRandomRareSkills(scale(10000.0))),
-                38 => Some(EffectType::DebuffImmunity),
-                41 => Some(EffectType::ActivateRelatedSkillsOnAllUma),
-                42 => Some(EffectType::EvolvedSkillDurationUp(scale(1000.0))),
-                48 => Some(EffectType::ZenkaiSpurtAcceleration(scale(10000.0))),
-                _ => None,
-            }
-        })
-        .collect();
-
-    let conditions = parse_condition_string(cg["condition"].as_str().unwrap_or(""), skill_id)?;
-    let preconditions =
-        parse_condition_string(cg["precondition"].as_str().unwrap_or(""), skill_id)?;
-
-    Ok(Effect {
-        duration,
-        effects,
-        conditions,
-        preconditions,
-    })
-}
-
 fn parse_rarity(value: &Value, id: SkillId) -> ScraperResult<Rarity> {
     match value.as_u64() {
         Some(1) => Ok(Rarity::Normal),
@@ -200,60 +138,10 @@ fn parse_rarity(value: &Value, id: SkillId) -> ScraperResult<Rarity> {
     }
 }
 
-fn parse_condition_string(s: &str, skill_id: SkillId) -> ScraperResult<Vec<Condition>> {
-    if s.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let mut conditions = Vec::new();
-
-    for (or_idx, or_group) in s.split('@').enumerate() {
-        for (and_idx, part) in or_group.split('&').enumerate() {
-            let (cond_key, operator, cond_val) =
-                parse_condition_operator(part).ok_or_else(|| {
-                    ScraperError::InvalidCondition(format!("'{part}' in skill {}", skill_id.0))
-                })?;
-
-            let is_or = or_idx > 0 && and_idx == 0;
-
-            conditions.push(Condition {
-                cond_key,
-                operator,
-                cond_val,
-                is_or,
-            });
-        }
-    }
-
-    Ok(conditions)
-}
-
-fn parse_condition_operator(s: &str) -> Option<(String, Operator, String)> {
-    let operators = [
-        (">=", Operator::GtEq),
-        ("<=", Operator::LtEq),
-        ("!=", Operator::NotEq),
-        ("==", Operator::Eq),
-        (">", Operator::Gt),
-        ("<", Operator::Lt),
-    ];
-
-    for (sym, op) in operators {
-        if let Some(pos) = s.find(sym) {
-            let key = s[..pos].trim().to_string();
-            let val = s[pos + sym.len()..].trim().to_string();
-            if !key.is_empty() && !val.is_empty() {
-                return Some((key, op, val));
-            }
-        }
-    }
-
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uma_core::models::skill::Duration;
 
     fn valid_item() -> serde_json::Value {
         serde_json::json!({
@@ -278,35 +166,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_timed_duration() {
-        let skill = parse_skill_item(&valid_item()).unwrap();
-        assert!(
-            matches!(skill.effects[0].duration, Duration::Timed(v) if (v - 5.0).abs() < f32::EPSILON)
-        );
-    }
-
-    #[test]
-    fn parses_infinite_duration() {
-        let mut item = valid_item();
-        item["condition_groups"][0]["base_time"] = serde_json::json!(-1);
-        let skill = parse_skill_item(&item).unwrap();
-        assert!(matches!(skill.effects[0].duration, Duration::Infinite));
-    }
-
-    #[test]
-    fn errors_on_missing_base_time() {
-        let mut item = valid_item();
-        item["condition_groups"][0]
-            .as_object_mut()
-            .unwrap()
-            .remove("base_time");
-        assert!(matches!(
-            parse_skill_item(&item),
-            Err(ScraperError::MissingField(_))
-        ));
-    }
-
-    #[test]
     fn parses_valid_skill() {
         let skill = parse_skill_item(&valid_item()).unwrap();
         assert_eq!(skill.id, SkillId(10071));
@@ -320,97 +179,44 @@ mod tests {
     }
 
     #[test]
-    fn parses_effects() {
-        let skill = parse_skill_item(&valid_item()).unwrap();
-        assert_eq!(skill.effects.len(), 1);
-        let effect = &skill.effects[0];
-        assert_eq!(effect.effects.len(), 2);
-        assert!(matches!(effect.effects[0], EffectType::TargetSpeedUp(_)));
-        assert!(matches!(effect.effects[1], EffectType::AccelerationUp(_)));
+    fn parses_full_roster() {
+        let json = serde_json::json!([valid_item(), valid_item()]).to_string();
+        let skills = parse_skill_roster(&json).unwrap();
+        assert_eq!(skills.len(), 2);
     }
 
     #[test]
-    fn parses_conditions() {
-        let skill = parse_skill_item(&valid_item()).unwrap();
-        let conditions = &skill.effects[0].conditions;
-        assert_eq!(conditions.len(), 2);
-        assert_eq!(conditions[0].cond_key, "distance_rate");
-        assert!(matches!(conditions[0].operator, Operator::GtEq));
-        assert_eq!(conditions[0].cond_val, "50");
-        assert!(!conditions[0].is_or);
-        assert_eq!(conditions[1].cond_key, "order_rate");
-        assert!(matches!(conditions[1].operator, Operator::Gt));
-        assert_eq!(conditions[1].cond_val, "50");
-        assert!(!conditions[1].is_or);
+    fn roster_tolerates_bad_items() {
+        let bad_item = serde_json::json!({"id": 99999, "rarity": 99});
+        let json = serde_json::json!([valid_item(), bad_item]).to_string();
+        let skills = parse_skill_roster(&json).unwrap();
+        assert_eq!(skills.len(), 1);
     }
 
     #[test]
-    fn parses_preconditions() {
-        let skill = parse_skill_item(&valid_item()).unwrap();
-        let preconditions = &skill.effects[0].preconditions;
-        assert_eq!(preconditions.len(), 1);
-        assert_eq!(preconditions[0].cond_key, "phase");
-        assert!(matches!(preconditions[0].operator, Operator::GtEq));
-        assert_eq!(preconditions[0].cond_val, "2");
-    }
-
-    #[test]
-    fn parses_or_conditions() {
+    fn prefers_en_loc_condition_groups() {
         let mut item = valid_item();
-        item["condition_groups"][0]["condition"] =
-            serde_json::json!("distance_rate>=50&order<=3@distance_rate>=50&order_rate<=50");
+        item["loc"] = serde_json::json!({
+            "en": {
+                "condition_groups": [{
+                    "base_time": 50000,
+                    "effects": [{"type": 27, "value": 1500}],
+                    "condition": "is_lastspurt==1",
+                    "precondition": ""
+                }]
+            }
+        });
         let skill = parse_skill_item(&item).unwrap();
         let conditions = &skill.effects[0].conditions;
-        assert_eq!(conditions.len(), 4);
-        assert!(!conditions[0].is_or);
-        assert!(!conditions[1].is_or);
-        assert!(conditions[2].is_or);
-        assert!(!conditions[3].is_or);
+        assert_eq!(conditions.len(), 1);
+        assert_eq!(conditions[0].cond_key, "is_lastspurt");
     }
 
     #[test]
-    fn skips_unknown_effect_types() {
-        let mut item = valid_item();
-        item["condition_groups"][0]["effects"] = serde_json::json!([
-            {"type": 27, "value": 4500},
-            {"type": 9999, "value": 100}
-        ]);
+    fn falls_back_to_top_level_condition_groups_when_no_en_loc() {
+        let item = valid_item();
         let skill = parse_skill_item(&item).unwrap();
-        assert_eq!(skill.effects[0].effects.len(), 1);
-    }
-
-    #[test]
-    fn handles_empty_condition_groups() {
-        let mut item = valid_item();
-        item.as_object_mut().unwrap().remove("condition_groups");
-        let skill = parse_skill_item(&item).unwrap();
-        assert!(skill.effects.is_empty());
-    }
-
-    #[test]
-    fn handles_empty_conditions() {
-        let mut item = valid_item();
-        item["condition_groups"][0]["condition"] = serde_json::json!("");
-        item["condition_groups"][0]["precondition"] = serde_json::json!("");
-        let skill = parse_skill_item(&item).unwrap();
-        assert!(skill.effects[0].conditions.is_empty());
-        assert!(skill.effects[0].preconditions.is_empty());
-    }
-
-    #[test]
-    fn defaults_sp_cost_to_zero_when_absent() {
-        let mut item = valid_item();
-        item.as_object_mut().unwrap().remove("cost");
-        let skill = parse_skill_item(&item).unwrap();
-        assert_eq!(skill.sp_cost, 0);
-    }
-
-    #[test]
-    fn defaults_desc_en_to_empty_when_absent() {
-        let mut item = valid_item();
-        item.as_object_mut().unwrap().remove("desc_en");
-        let skill = parse_skill_item(&item).unwrap();
-        assert_eq!(skill.ingame_description, "");
+        assert_eq!(skill.effects[0].conditions[0].cond_key, "distance_rate");
     }
 
     #[test]
@@ -454,52 +260,34 @@ mod tests {
     }
 
     #[test]
-    fn errors_on_malformed_condition() {
+    fn defaults_sp_cost_to_zero_when_absent() {
         let mut item = valid_item();
-        item["condition_groups"][0]["condition"] = serde_json::json!("notacondition");
-        assert!(matches!(
-            parse_skill_item(&item),
-            Err(ScraperError::InvalidCondition(_))
-        ));
+        item.as_object_mut().unwrap().remove("cost");
+        let skill = parse_skill_item(&item).unwrap();
+        assert_eq!(skill.sp_cost, 0);
     }
 
     #[test]
-    fn parses_full_roster() {
-        let json = serde_json::json!([valid_item(), valid_item()]).to_string();
-        let skills = parse_skill_roster(&json).unwrap();
-        assert_eq!(skills.len(), 2);
-    }
-
-    #[test]
-    fn roster_tolerates_bad_items() {
-        let bad_item = serde_json::json!({"id": 99999, "rarity": 99});
-        let json = serde_json::json!([valid_item(), bad_item]).to_string();
-        let skills = parse_skill_roster(&json).unwrap();
-        assert_eq!(skills.len(), 1);
-    }
-
-    #[test]
-    fn prefers_en_loc_condition_groups() {
+    fn defaults_desc_en_to_empty_when_absent() {
         let mut item = valid_item();
-        item["loc"] = serde_json::json!({
-            "en": {
-                "condition_groups": [{
-                    "effects": [{"type": 27, "value": 1500}],
-                    "condition": "is_lastspurt==1",
-                    "precondition": ""
-                }]
-            }
-        });
+        item.as_object_mut().unwrap().remove("desc_en");
         let skill = parse_skill_item(&item).unwrap();
-        let conditions = &skill.effects[0].conditions;
-        assert_eq!(conditions.len(), 1);
-        assert_eq!(conditions[0].cond_key, "is_lastspurt");
+        assert_eq!(skill.ingame_description, "");
     }
 
     #[test]
-    fn falls_back_to_top_level_condition_groups_when_no_en_loc() {
-        let item = valid_item(); // no loc field
+    fn handles_empty_condition_groups() {
+        let mut item = valid_item();
+        item.as_object_mut().unwrap().remove("condition_groups");
         let skill = parse_skill_item(&item).unwrap();
-        assert_eq!(skill.effects[0].conditions[0].cond_key, "distance_rate");
+        assert!(skill.effects.is_empty());
+    }
+
+    #[test]
+    fn parses_timed_duration() {
+        let skill = parse_skill_item(&valid_item()).unwrap();
+        assert!(
+            matches!(skill.effects[0].duration, Duration::Timed(v) if (v - 5.0).abs() < f32::EPSILON)
+        );
     }
 }
