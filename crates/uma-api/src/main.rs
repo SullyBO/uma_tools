@@ -68,6 +68,8 @@ async fn main() {
         .route("/skills", get(routes::skills::list))
         .route("/skills/index", get(routes::skills::index))
         .route("/skills/{id}", get(routes::skills::detail))
+        .route("/cards/index", get(routes::cards::index))
+        .route("/cards/{id}", get(routes::cards::detail))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,

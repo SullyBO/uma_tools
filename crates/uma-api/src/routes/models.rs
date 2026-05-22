@@ -137,3 +137,43 @@ pub struct SkillCondition {
     pub cond_val: String,
     pub is_or: bool,
 }
+
+#[derive(Debug, Serialize)]
+pub struct CardIndex {
+    pub support_id: i32,
+    pub char_name: String,
+    pub title: String,
+    pub card_type: String,
+    pub rarity: String,
+}
+
+#[derive(Serialize)]
+pub struct CardDetail {
+    pub support_id: i32,
+    pub char_name: String,
+    pub title: String,
+    pub card_type: String,
+    pub rarity: String,
+    pub is_welfare: bool,
+    pub release_date: Option<String>,
+    pub is_predicted_date: bool,
+    pub unique_effect: Option<String>,
+    pub effects: Vec<CardEffect>,
+    pub skills: Vec<CardSkill>,
+}
+
+#[derive(Serialize)]
+pub struct CardEffect {
+    pub effect_name: String,
+    pub lb0: Option<i32>,
+    pub lb1: Option<i32>,
+    pub lb2: Option<i32>,
+    pub lb3: Option<i32>,
+    pub mlb: Option<i32>,
+}
+
+#[derive(Serialize)]
+pub struct CardSkill {
+    pub skill_id: i32,
+    pub acquisition: String,
+}

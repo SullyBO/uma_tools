@@ -60,7 +60,7 @@ pub async fn sync_conditions(db: &database) {
     }
 }
 
-pub async fn sync_cards(_db: &database) {
+pub async fn sync_cards(db: &database) {
     let client = ScraperClient::builder().build();
 
     let cards = match fetch_support_card_roster(&client).await {
@@ -71,16 +71,7 @@ pub async fn sync_cards(_db: &database) {
         }
     };
 
-    log::info!("Fetched {} support cards", cards.len());
-
-    for card in &cards {
-        if let Some(ref effect) = card.unique_effect {
-            if effect.is_empty() {
-                log::warn!(
-                    "support_id {} has unique effect with no translated parts",
-                    card.id.0
-                );
-            }
-        }
+    if let Err(e) = db.upsert_all_support_cards(&cards).await {
+        log::error!("Failed to upsert all support cards: {e}");
     }
 }
