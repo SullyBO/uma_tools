@@ -89,7 +89,11 @@ fn parse_skill_item(item: &Value) -> ScraperResult<Skill> {
         }
     };
 
-    let ingame_description = item["desc_en"].as_str().unwrap_or("").to_string();
+    let ingame_description = item["desc_en"]
+        .as_str()
+        .or_else(|| item["endesc"].as_str())
+        .unwrap_or("")
+        .to_string();
 
     let condition_groups = item
         .pointer("/loc/en/condition_groups")
