@@ -366,6 +366,7 @@ pub struct UmaSkillRow {
 pub struct SkillRow {
     pub id: i32,
     pub name: String,
+    pub ingame_description: String,
     pub category: DbSkillCategory,
     pub rarity: DbSkillRarity,
     pub sp_cost: i32,

@@ -106,6 +106,7 @@ pub struct SkillSummary {
 pub struct SkillDetail {
     pub id: i32,
     pub name: String,
+    pub ingame_description: String,
     pub category: String,
     pub rarity: String,
     pub sp_cost: i32,
@@ -117,6 +118,7 @@ pub struct SkillDetail {
 pub struct SkillTrigger {
     pub id: i32,
     pub duration: Option<f32>,
+    pub scaling: Option<String>,
     pub effects: Vec<SkillEffect>,
     pub conditions: Vec<SkillCondition>,
     pub preconditions: Vec<SkillCondition>,

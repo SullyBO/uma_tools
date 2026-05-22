@@ -6,6 +6,7 @@ use uma_scraper::{
             skill_condition_type_parser::fetch_skill_condition_types,
             skill_parser::fetch_skill_roster,
         },
+        support_cards::support_cards_parser::fetch_support_card_roster,
         uma_parser::fetch_uma_roster,
     },
 };
@@ -56,5 +57,30 @@ pub async fn sync_conditions(db: &database) {
     match db.upsert_all_condition_types(&conditions).await {
         Ok(_) => log::info!("Conditions sync complete: {} upserted", conditions.len()),
         Err(e) => log::error!("Failed to upsert condition types: {e}"),
+    }
+}
+
+pub async fn sync_cards(_db: &database) {
+    let client = ScraperClient::builder().build();
+
+    let cards = match fetch_support_card_roster(&client).await {
+        Ok(cards) => cards,
+        Err(e) => {
+            log::error!("Failed to fetch/parse support card roster: {e}");
+            return;
+        }
+    };
+
+    log::info!("Fetched {} support cards", cards.len());
+
+    for card in &cards {
+        if let Some(ref effect) = card.unique_effect {
+            if effect.is_empty() {
+                log::warn!(
+                    "support_id {} has unique effect with no translated parts",
+                    card.id.0
+                );
+            }
+        }
     }
 }

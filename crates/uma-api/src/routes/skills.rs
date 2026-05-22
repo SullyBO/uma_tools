@@ -65,6 +65,7 @@ pub async fn detail(
     Ok(Json(SkillDetail {
         id: detail.skill.id,
         name: detail.skill.name,
+        ingame_description: detail.skill.ingame_description,
         category: detail.skill.category.to_string(),
         rarity: detail.skill.rarity.to_string(),
         sp_cost: detail.skill.sp_cost,
@@ -75,6 +76,7 @@ pub async fn detail(
             .map(|t| SkillTrigger {
                 id: t.id,
                 duration: t.duration,
+                scaling: t.scaling,
                 effects: t
                     .effects
                     .into_iter()

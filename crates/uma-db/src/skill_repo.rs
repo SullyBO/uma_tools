@@ -250,7 +250,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
     let skill = sqlx::query_as!(
         SkillRow,
         r#"
-        SELECT id, name, category as "category: DbSkillCategory",
+        SELECT id, name, ingame_description, category as "category: DbSkillCategory",
             rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only
         FROM skills WHERE id = $1
         "#,
