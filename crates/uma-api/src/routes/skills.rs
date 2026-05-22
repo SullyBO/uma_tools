@@ -8,8 +8,10 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use uma_db::skill_repo::{get_skill_by_id, get_skills};
-use uma_db::types::SkillFilter;
+use uma_db::{
+    repositories::skill_repo::{get_skill_by_id, get_skills},
+    types::SkillFilter,
+};
 
 pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<SkillIndex>>, ApiError> {
     let rows = sqlx::query_as!(SkillIndex, "SELECT id, name FROM skills ORDER BY name")

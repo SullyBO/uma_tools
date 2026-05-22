@@ -6,8 +6,11 @@ use axum::{
     extract::{Path, Query, State},
 };
 use uma_db::{
-    uma_skill_repo::{get_skills_for_uma, get_uma_by_id},
-    {types::UmaFilter, uma_repo::get_umas},
+    repositories::{
+        uma_repo::get_umas,
+        uma_skill_repo::{get_skills_for_uma, get_uma_by_id},
+    },
+    types::UmaFilter,
 };
 
 pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<UmaIndex>>, ApiError> {

@@ -1,7 +1,13 @@
+use crate::repositories::{
+    skill_repo::{upsert_all_condition_types, upsert_all_skills},
+    support_card_repo::upsert_all_support_cards,
+    uma_repo::upsert_all_uma,
+};
 use sqlx::{ConnectOptions, PgPool, postgres::PgConnectOptions};
 use std::str::FromStr;
 use uma_core::models::{
     skill::{ConditionType, Skill},
+    support_card::SupportCard,
     uma::Uma,
 };
 
@@ -19,17 +25,21 @@ impl Db {
     }
 
     pub async fn upsert_all_skills(&self, skill: &[Skill]) -> Result<(), sqlx::Error> {
-        crate::skill_repo::upsert_all_skills(&self.pool, skill).await
+        upsert_all_skills(&self.pool, skill).await
     }
 
     pub async fn upsert_all_uma(&self, uma: &[Uma]) -> Result<(), sqlx::Error> {
-        crate::uma_repo::upsert_all_uma(&self.pool, uma).await
+        upsert_all_uma(&self.pool, uma).await
     }
 
     pub async fn upsert_all_condition_types(
         &self,
         conditions: &[ConditionType],
     ) -> Result<(), sqlx::Error> {
-        crate::skill_repo::upsert_all_condition_types(&self.pool, conditions).await
+        upsert_all_condition_types(&self.pool, conditions).await
+    }
+
+    pub async fn upsert_all_support_cards(&self, cards: &[SupportCard]) -> Result<(), sqlx::Error> {
+        upsert_all_support_cards(&self.pool, cards).await
     }
 }
