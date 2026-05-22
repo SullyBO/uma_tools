@@ -5,6 +5,7 @@ use std::fmt;
 use uma_core::{
     models::{
         skill::{Category, Operator, Rarity as SkillRarity},
+        support_card::{CardType, Rarity as SupportRarity},
         uma::{AptitudeLevel, Rarity as UmaRarity},
     },
     uma_skill::SkillAcquisition,
@@ -405,4 +406,137 @@ pub struct ConditionRow {
     pub operator: DbSkillOperator,
     pub cond_val: String,
     pub is_or: bool,
+}
+
+pub struct SupportCardFilter {
+    pub card_type: Option<DbCardType>,
+    pub rarity: Option<DbCardRarity>,
+    pub is_welfare: Option<bool>,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct SupportCardRow {
+    pub support_id: i32,
+    pub char_name: String,
+    pub title: String,
+    pub card_type: DbCardType,
+    pub rarity: DbCardRarity,
+    pub is_welfare: bool,
+    pub release_en: Option<NaiveDate>,
+    pub is_predicted_date: bool,
+    pub unique_effect: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct SupportCardEffectRow {
+    pub support_id: i32,
+    pub effect_id: i32,
+    pub lb0: Option<i32>,
+    pub lb1: Option<i32>,
+    pub lb2: Option<i32>,
+    pub lb3: Option<i32>,
+    pub mlb: Option<i32>,
+}
+
+#[derive(Debug, Type)]
+#[sqlx(type_name = "support_card_type")]
+pub enum DbCardType {
+    #[sqlx(rename = "speed")]
+    Speed,
+    #[sqlx(rename = "stamina")]
+    Stamina,
+    #[sqlx(rename = "power")]
+    Power,
+    #[sqlx(rename = "guts")]
+    Guts,
+    #[sqlx(rename = "wit")]
+    Wit,
+    #[sqlx(rename = "friend")]
+    Friend,
+    #[sqlx(rename = "group")]
+    Group,
+}
+
+impl From<CardType> for DbCardType {
+    fn from(ct: CardType) -> Self {
+        match ct {
+            CardType::Speed => DbCardType::Speed,
+            CardType::Stamina => DbCardType::Stamina,
+            CardType::Power => DbCardType::Power,
+            CardType::Guts => DbCardType::Guts,
+            CardType::Wit => DbCardType::Wit,
+            CardType::Friend => DbCardType::Friend,
+            CardType::Group => DbCardType::Group,
+        }
+    }
+}
+
+impl fmt::Display for DbCardType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbCardType::Speed => write!(f, "speed"),
+            DbCardType::Stamina => write!(f, "stamina"),
+            DbCardType::Power => write!(f, "power"),
+            DbCardType::Guts => write!(f, "guts"),
+            DbCardType::Wit => write!(f, "wit"),
+            DbCardType::Friend => write!(f, "friend"),
+            DbCardType::Group => write!(f, "group"),
+        }
+    }
+}
+
+#[derive(Debug, Type, Clone)]
+#[sqlx(type_name = "support_card_rarity")]
+pub enum DbCardRarity {
+    #[sqlx(rename = "r")]
+    R,
+    #[sqlx(rename = "sr")]
+    SR,
+    #[sqlx(rename = "ssr")]
+    SSR,
+}
+
+impl fmt::Display for DbCardRarity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbCardRarity::R => write!(f, "r"),
+            DbCardRarity::SR => write!(f, "sr"),
+            DbCardRarity::SSR => write!(f, "ssr"),
+        }
+    }
+}
+
+impl From<SupportRarity> for DbCardRarity {
+    fn from(r: SupportRarity) -> Self {
+        match r {
+            SupportRarity::R => DbCardRarity::R,
+            SupportRarity::SR => DbCardRarity::SR,
+            SupportRarity::SSR => DbCardRarity::SSR,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Type)]
+#[sqlx(type_name = "support_skill_acquisition")]
+pub enum DbSupportSkillAcquisition {
+    #[sqlx(rename = "event")]
+    Event,
+    #[sqlx(rename = "hint")]
+    Hint,
+}
+
+impl fmt::Display for DbSupportSkillAcquisition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbSupportSkillAcquisition::Event => write!(f, "event"),
+            DbSupportSkillAcquisition::Hint => write!(f, "hint"),
+        }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+pub struct SupportCardSkillRow {
+    pub support_id: i32,
+    pub skill_id: i32,
+    pub acquisition: DbSupportSkillAcquisition,
 }

@@ -213,7 +213,7 @@ fn parse_skills(item: &Value) -> Vec<SupportCardSkill> {
         for v in arr {
             if let Some(n) = v.as_u64() {
                 skills.push(SupportCardSkill {
-                    id: SkillId(n as u32),
+                    skill_id: SkillId(n as u32),
                     acquisition: HintAcquisition::Event,
                 });
             }
@@ -224,7 +224,7 @@ fn parse_skills(item: &Value) -> Vec<SupportCardSkill> {
         for v in hints {
             if let Some(n) = v.as_u64() {
                 skills.push(SupportCardSkill {
-                    id: SkillId(n as u32),
+                    skill_id: SkillId(n as u32),
                     acquisition: HintAcquisition::Hint,
                 });
             }
@@ -242,10 +242,6 @@ fn parse_support_card(
         .as_u64()
         .ok_or_else(|| ScraperError::MissingField("support_id".into()))
         .map(|n| SupportCardId(n as u32))?;
-
-    let char_id = item["char_id"]
-        .as_u64()
-        .ok_or_else(|| ScraperError::MissingField("char_id".into()))? as u32;
 
     let char_name = item["char_name"]
         .as_str()
@@ -269,7 +265,6 @@ fn parse_support_card(
 
     Ok(Some(SupportCard {
         id,
-        char_id,
         char_name,
         title,
         card_type,
@@ -341,7 +336,7 @@ mod tests {
             .collect();
 
         assert_eq!(event_skills.len(), 1);
-        assert_eq!(event_skills[0].id, SkillId(200042));
+        assert_eq!(event_skills[0].skill_id, SkillId(200042));
     }
 
     #[test]
@@ -357,8 +352,8 @@ mod tests {
             .collect();
 
         assert_eq!(hint_skills.len(), 2);
-        assert_eq!(hint_skills[0].id, SkillId(200162));
-        assert_eq!(hint_skills[1].id, SkillId(200232));
+        assert_eq!(hint_skills[0].skill_id, SkillId(200162));
+        assert_eq!(hint_skills[1].skill_id, SkillId(200232));
     }
 
     #[test]

@@ -4,7 +4,6 @@ use chrono::NaiveDate;
 #[derive(Debug, Clone, PartialEq)]
 pub struct SupportCard {
     pub id: SupportCardId,
-    pub char_id: u32,
     pub char_name: String,
     pub title: String,
     pub card_type: CardType,
