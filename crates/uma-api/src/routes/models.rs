@@ -96,6 +96,7 @@ pub struct SkillQueryParams {
 pub struct SkillSummary {
     pub id: i32,
     pub name: String,
+    pub ingame_description: String,
     pub category: String,
     pub rarity: String,
     pub sp_cost: i32,

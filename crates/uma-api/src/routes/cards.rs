@@ -49,7 +49,7 @@ fn effect_id_to_name(id: i32) -> &'static str {
 
 pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<CardIndex>>, ApiError> {
     let rows = get_card_index(&state.pool).await?;
- 
+
     let cards = rows
         .into_iter()
         .map(|r| CardIndex {
@@ -63,7 +63,7 @@ pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<CardIndex>>
             is_predicted_date: r.is_predicted_date,
         })
         .collect();
- 
+
     Ok(Json(cards))
 }
 

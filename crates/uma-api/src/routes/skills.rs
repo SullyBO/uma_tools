@@ -39,6 +39,7 @@ pub async fn list(
         .map(|s| SkillSummary {
             id: s.id,
             name: s.name,
+            ingame_description: s.ingame_description,
             category: s.category.to_string(),
             rarity: s.rarity.to_string(),
             sp_cost: s.sp_cost,

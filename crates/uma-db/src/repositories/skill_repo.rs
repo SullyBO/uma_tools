@@ -213,7 +213,7 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
 
 pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillRow>, sqlx::Error> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT DISTINCT s.id, s.name, s.category, s.rarity, s.sp_cost, s.is_jp_only
+        "SELECT DISTINCT s.id, s.name, s.ingame_description, s.category, s.rarity, s.sp_cost, s.is_jp_only
          FROM skills s",
     );
 
