@@ -145,6 +145,9 @@ pub struct CardIndex {
     pub title: String,
     pub card_type: String,
     pub rarity: String,
+    pub is_welfare: bool,
+    pub release_date: Option<String>,
+    pub is_predicted_date: bool,
 }
 
 #[derive(Serialize)]
