@@ -186,8 +186,7 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
     if !cond_trigger_ids.is_empty() {
         sqlx::query!(
             r#"
-            INSERT INTO skill_trigger_conditions
-                (trigger_id, cond_key, operator, cond_val, is_precondition, is_or)
+            INSERT INTO skill_trigger_conditions (trigger_id, cond_key, operator, cond_val, is_precondition, is_or)
             SELECT * FROM UNNEST($1::int[], $2::text[], $3::skill_operator[], $4::text[], $5::bool[], $6::bool[])
             "#,
             &cond_trigger_ids,
@@ -214,8 +213,10 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
 
 pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillRow>, sqlx::Error> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT DISTINCT s.id, s.name, s.ingame_description, s.category, s.rarity, s.sp_cost, s.is_jp_only
-         FROM skills s",
+        "
+        SELECT DISTINCT s.id, s.name, s.ingame_description, s.category, s.rarity, s.sp_cost, s.is_jp_only
+        FROM skills s
+        ",
     );
 
     if filter.effect_type.is_some() {
@@ -251,8 +252,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
     let skill = sqlx::query_as!(
         SkillRow,
         r#"
-        SELECT id, name, ingame_description, category as "category: DbSkillCategory",
-            rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only
+        SELECT id, name, ingame_description, category as "category: DbSkillCategory", rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only
         FROM skills WHERE id = $1
         "#,
         id
@@ -265,7 +265,10 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
     };
 
     let trigger_records = sqlx::query!(
-        "SELECT id, duration, scaling FROM skill_triggers WHERE skill_id = $1",
+        "
+        SELECT id, duration, scaling 
+        FROM skill_triggers WHERE skill_id = $1
+        ",
         id
     )
     .fetch_all(pool)
@@ -282,7 +285,11 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
 
     let all_effects = sqlx::query_as!(
         EffectRow,
-        "SELECT trigger_id, effect_type, effect_value FROM skill_trigger_effects WHERE trigger_id = ANY($1::int[])",
+        "
+        SELECT trigger_id, effect_type, effect_value 
+        FROM skill_trigger_effects 
+        WHERE trigger_id = ANY($1::int[])
+        ",
         &trigger_ids
     )
     .fetch_all(pool)
@@ -291,7 +298,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
     let all_conditions = sqlx::query!(
         r#"
         SELECT trigger_id, cond_key, operator as "operator: DbSkillOperator",
-            cond_val, is_precondition, is_or
+        cond_val, is_precondition, is_or
         FROM skill_trigger_conditions WHERE trigger_id = ANY($1::int[])
         "#,
         &trigger_ids
@@ -356,16 +363,23 @@ pub async fn get_skill_acquisitions(
     skill_id: i32,
 ) -> Result<Vec<AcquisitionRow>, sqlx::Error> {
     let umas = sqlx::query!(
-        r#"SELECT uma_id AS source_id, acquisition AS "acquisition: DbSkillAcquisition"
-        FROM uma_skills WHERE skill_id = $1"#,
+        r#"
+        SELECT uma_id AS source_id, acquisition AS "acquisition: DbSkillAcquisition"
+        FROM uma_skills WHERE skill_id = $1
+        "#,
         skill_id
     )
     .fetch_all(pool)
     .await?;
 
     let cards = sqlx::query!(
-        r#"SELECT support_id AS source_id, acquisition AS "acquisition: DbSupportSkillAcquisition"
-        FROM support_card_skills WHERE skill_id = $1"#,
+        r#"
+        SELECT scs.support_id AS source_id, scs.acquisition AS "acquisition: DbSupportSkillAcquisition"
+        FROM support_card_skills scs
+        JOIN support_cards sc ON sc.support_id = scs.support_id
+        WHERE scs.skill_id = $1
+        AND sc.rarity != 'r'
+        "#,
         skill_id
     )
     .fetch_all(pool)
