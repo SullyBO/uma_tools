@@ -113,6 +113,7 @@ pub struct SkillDetail {
     pub sp_cost: i32,
     pub is_jp_only: bool,
     pub triggers: Vec<SkillTrigger>,
+    pub acquisitions: Vec<SkillAcquisitionEntry>,
 }
 
 #[derive(Serialize)]
@@ -179,5 +180,12 @@ pub struct CardEffect {
 #[derive(Serialize)]
 pub struct CardSkill {
     pub skill_id: i32,
+    pub acquisition: String,
+}
+
+#[derive(Serialize)]
+pub struct SkillAcquisitionEntry {
+    pub source_id: i32,
+    pub source_type: String, // "uma" | "support_card"
     pub acquisition: String,
 }

@@ -540,3 +540,9 @@ pub struct SupportCardSkillRow {
     pub skill_id: i32,
     pub acquisition: DbSupportSkillAcquisition,
 }
+
+pub struct AcquisitionRow {
+    pub source_id: i32,
+    pub source_type: String,
+    pub acquisition: String,
+}

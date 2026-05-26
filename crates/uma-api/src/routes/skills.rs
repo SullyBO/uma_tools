@@ -1,13 +1,14 @@
 use crate::AppState;
 use crate::error::ApiError;
 use crate::routes::models::{
-    SkillCondition, SkillDetail, SkillEffect, SkillIndex, SkillQueryParams, SkillSummary,
-    SkillTrigger,
+    SkillAcquisitionEntry, SkillCondition, SkillDetail, SkillEffect, SkillIndex, SkillQueryParams,
+    SkillSummary, SkillTrigger,
 };
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use uma_db::repositories::skill_repo::get_skill_acquisitions;
 use uma_db::{
     repositories::skill_repo::{get_skill_by_id, get_skills},
     types::SkillFilter,
@@ -65,6 +66,8 @@ pub async fn detail(
         .await?
         .ok_or(ApiError::NotFound)?;
 
+    let acquisitions = get_skill_acquisitions(&state.pool, id).await?;
+
     Ok(Json(SkillDetail {
         id: detail.skill.id,
         name: detail.skill.name,
@@ -90,6 +93,14 @@ pub async fn detail(
                     .collect(),
                 conditions: t.conditions.into_iter().map(map_condition).collect(),
                 preconditions: t.preconditions.into_iter().map(map_condition).collect(),
+            })
+            .collect(),
+        acquisitions: acquisitions
+            .into_iter()
+            .map(|a| SkillAcquisitionEntry {
+                source_id: a.source_id,
+                source_type: a.source_type,
+                acquisition: a.acquisition,
             })
             .collect(),
     }))

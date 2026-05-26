@@ -1,6 +1,7 @@
 use crate::types::{
-    ConditionRow, DbSkillCategory, DbSkillOperator, DbSkillRarity, EffectRow, SkillDetail,
-    SkillFilter, SkillRow, TriggerRow,
+    AcquisitionRow, ConditionRow, DbSkillAcquisition, DbSkillCategory, DbSkillOperator,
+    DbSkillRarity, DbSupportSkillAcquisition, EffectRow, SkillDetail, SkillFilter, SkillRow,
+    TriggerRow,
 };
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use uma_core::models::skill::{ConditionType, Duration, Skill};
@@ -348,4 +349,41 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
         .collect();
 
     Ok(Some(SkillDetail { skill, triggers }))
+}
+
+pub async fn get_skill_acquisitions(
+    pool: &PgPool,
+    skill_id: i32,
+) -> Result<Vec<AcquisitionRow>, sqlx::Error> {
+    let umas = sqlx::query!(
+        r#"SELECT uma_id AS source_id, acquisition AS "acquisition: DbSkillAcquisition"
+        FROM uma_skills WHERE skill_id = $1"#,
+        skill_id
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let cards = sqlx::query!(
+        r#"SELECT support_id AS source_id, acquisition AS "acquisition: DbSupportSkillAcquisition"
+        FROM support_card_skills WHERE skill_id = $1"#,
+        skill_id
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let acquisitions = umas
+        .into_iter()
+        .map(|r| AcquisitionRow {
+            source_id: r.source_id,
+            source_type: "uma".to_string(),
+            acquisition: r.acquisition.to_string(),
+        })
+        .chain(cards.into_iter().map(|r| AcquisitionRow {
+            source_id: r.source_id,
+            source_type: "support_card".to_string(),
+            acquisition: r.acquisition.to_string(),
+        }))
+        .collect();
+
+    Ok(acquisitions)
 }
