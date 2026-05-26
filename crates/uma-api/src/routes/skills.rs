@@ -1,8 +1,8 @@
 use crate::AppState;
 use crate::error::ApiError;
 use crate::routes::models::{
-    SkillAcquisitionEntry, SkillCondition, SkillDetail, SkillEffect, SkillIndex, SkillQueryParams,
-    SkillSummary, SkillTrigger,
+    InheritedSkill, SkillAcquisitionEntry, SkillCondition, SkillDetail, SkillEffect, SkillIndex,
+    SkillQueryParams, SkillSummary, SkillTrigger,
 };
 use axum::{
     Json,
@@ -62,22 +62,8 @@ pub async fn detail(
         is_or: c.is_or,
     };
 
-    let detail = get_skill_by_id(&state.pool, id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-
-    let acquisitions = get_skill_acquisitions(&state.pool, id).await?;
-
-    Ok(Json(SkillDetail {
-        id: detail.skill.id,
-        name: detail.skill.name,
-        ingame_description: detail.skill.ingame_description,
-        category: detail.skill.category.to_string(),
-        rarity: detail.skill.rarity.to_string(),
-        sp_cost: detail.skill.sp_cost,
-        is_jp_only: detail.skill.is_jp_only,
-        triggers: detail
-            .triggers
+    let map_triggers = |triggers: Vec<uma_db::types::TriggerRow>| {
+        triggers
             .into_iter()
             .map(|t| SkillTrigger {
                 id: t.id,
@@ -94,7 +80,35 @@ pub async fn detail(
                 conditions: t.conditions.into_iter().map(map_condition).collect(),
                 preconditions: t.preconditions.into_iter().map(map_condition).collect(),
             })
-            .collect(),
+            .collect()
+    };
+
+    let detail = get_skill_by_id(&state.pool, id)
+        .await?
+        .ok_or(ApiError::NotFound)?;
+
+    let acquisitions = get_skill_acquisitions(&state.pool, id).await?;
+
+    let inherited_skill = detail.inherited.map(|i| InheritedSkill {
+        id: i.skill.id,
+        name: i.skill.name,
+        ingame_description: i.skill.ingame_description,
+        category: i.skill.category.to_string(),
+        rarity: i.skill.rarity.to_string(),
+        sp_cost: i.skill.sp_cost,
+        triggers: map_triggers(i.triggers),
+    });
+
+    Ok(Json(SkillDetail {
+        id: detail.skill.id,
+        name: detail.skill.name,
+        ingame_description: detail.skill.ingame_description,
+        category: detail.skill.category.to_string(),
+        rarity: detail.skill.rarity.to_string(),
+        sp_cost: detail.skill.sp_cost,
+        is_jp_only: detail.skill.is_jp_only,
+        inherited_skill,
+        triggers: map_triggers(detail.triggers),
         acquisitions: acquisitions
             .into_iter()
             .map(|a| SkillAcquisitionEntry {

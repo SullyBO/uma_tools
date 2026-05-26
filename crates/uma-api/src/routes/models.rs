@@ -112,6 +112,7 @@ pub struct SkillDetail {
     pub rarity: String,
     pub sp_cost: i32,
     pub is_jp_only: bool,
+    pub inherited_skill: Option<InheritedSkill>,
     pub triggers: Vec<SkillTrigger>,
     pub acquisitions: Vec<SkillAcquisitionEntry>,
 }
@@ -188,4 +189,15 @@ pub struct SkillAcquisitionEntry {
     pub source_id: i32,
     pub source_type: String, // "uma" | "support_card"
     pub acquisition: String,
+}
+
+#[derive(Serialize)]
+pub struct InheritedSkill {
+    pub id: i32,
+    pub name: String,
+    pub ingame_description: String,
+    pub category: String,
+    pub rarity: String,
+    pub sp_cost: i32,
+    pub triggers: Vec<SkillTrigger>,
 }

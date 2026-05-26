@@ -9,6 +9,7 @@ pub struct Skill {
     pub sp_cost: u32,
     pub effects: Vec<Effect>,
     pub is_jp_only: bool,
+    pub inherited_skill_id: Option<SkillId>,
 }
 
 #[derive(Debug, Copy, Clone)]

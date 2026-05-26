@@ -372,6 +372,7 @@ pub struct SkillRow {
     pub rarity: DbSkillRarity,
     pub sp_cost: i32,
     pub is_jp_only: bool,
+    pub inherited_skill_id: Option<i32>,
 }
 
 pub struct SkillFilter {
@@ -384,6 +385,7 @@ pub struct SkillFilter {
 pub struct SkillDetail {
     pub skill: SkillRow,
     pub triggers: Vec<TriggerRow>,
+    pub inherited: Option<InheritedSkillRow>,
 }
 
 pub struct TriggerRow {
@@ -545,4 +547,9 @@ pub struct AcquisitionRow {
     pub source_id: i32,
     pub source_type: String,
     pub acquisition: String,
+}
+
+pub struct InheritedSkillRow {
+    pub skill: SkillRow,
+    pub triggers: Vec<TriggerRow>,
 }

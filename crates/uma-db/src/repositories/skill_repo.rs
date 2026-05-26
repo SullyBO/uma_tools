@@ -1,7 +1,7 @@
 use crate::types::{
     AcquisitionRow, ConditionRow, DbSkillAcquisition, DbSkillCategory, DbSkillOperator,
-    DbSkillRarity, DbSupportSkillAcquisition, EffectRow, SkillDetail, SkillFilter, SkillRow,
-    TriggerRow,
+    DbSkillRarity, DbSupportSkillAcquisition, EffectRow, InheritedSkillRow, SkillDetail,
+    SkillFilter, SkillRow, TriggerRow,
 };
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use uma_core::models::skill::{ConditionType, Duration, Skill};
@@ -57,18 +57,23 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
         .collect();
     let sp_costs: Vec<i32> = skills.iter().map(|s| s.sp_cost as i32).collect();
     let jp_only: Vec<bool> = skills.iter().map(|s| s.is_jp_only).collect();
+    let inherited_skill_ids: Vec<Option<i32>> = skills
+        .iter()
+        .map(|s| s.inherited_skill_id.map(|id| id.0 as i32))
+        .collect();
 
     sqlx::query!(
         r#"
-        INSERT INTO skills (id, name, ingame_description, category, rarity, sp_cost, is_jp_only)
-        SELECT * FROM UNNEST($1::int[], $2::text[], $3::text[], $4::skill_category[], $5::skill_rarity[], $6::int[], $7::bool[])
+        INSERT INTO skills (id, name, ingame_description, category, rarity, sp_cost, is_jp_only, inherited_skill_id)
+        SELECT * FROM UNNEST($1::int[], $2::text[], $3::text[], $4::skill_category[], $5::skill_rarity[], $6::int[], $7::bool[], $8::int[])
         ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
             ingame_description = EXCLUDED.ingame_description,
             category = EXCLUDED.category,
             rarity = EXCLUDED.rarity,
             sp_cost = EXCLUDED.sp_cost,
-            is_jp_only = EXCLUDED.is_jp_only
+            is_jp_only = EXCLUDED.is_jp_only,
+            inherited_skill_id = EXCLUDED.inherited_skill_id
         "#,
         &ids,
         &names as &[&str],
@@ -77,6 +82,7 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
         &rarities as &[DbSkillRarity],
         &sp_costs,
         &jp_only,
+        &inherited_skill_ids as &[Option<i32>],
     )
     .execute(pool)
     .await?;
@@ -248,48 +254,26 @@ pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillR
     qb.build_query_as::<SkillRow>().fetch_all(pool).await
 }
 
-pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetail>, sqlx::Error> {
-    let skill = sqlx::query_as!(
-        SkillRow,
-        r#"
-        SELECT id, name, ingame_description, category as "category: DbSkillCategory", rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only
-        FROM skills WHERE id = $1
-        "#,
-        id
-    )
-    .fetch_optional(pool)
-    .await?;
-
-    let Some(skill) = skill else {
-        return Ok(None);
-    };
-
+async fn get_triggers_for_skill(
+    pool: &PgPool,
+    skill_id: i32,
+) -> Result<Vec<TriggerRow>, sqlx::Error> {
     let trigger_records = sqlx::query!(
-        "
-        SELECT id, duration, scaling 
-        FROM skill_triggers WHERE skill_id = $1
-        ",
-        id
+        "SELECT id, duration, scaling FROM skill_triggers WHERE skill_id = $1",
+        skill_id
     )
     .fetch_all(pool)
     .await?;
 
     if trigger_records.is_empty() {
-        return Ok(Some(SkillDetail {
-            skill,
-            triggers: vec![],
-        }));
+        return Ok(vec![]);
     }
 
     let trigger_ids: Vec<i32> = trigger_records.iter().map(|t| t.id).collect();
 
     let all_effects = sqlx::query_as!(
         EffectRow,
-        "
-        SELECT trigger_id, effect_type, effect_value 
-        FROM skill_trigger_effects 
-        WHERE trigger_id = ANY($1::int[])
-        ",
+        "SELECT trigger_id, effect_type, effect_value FROM skill_trigger_effects WHERE trigger_id = ANY($1::int[])",
         &trigger_ids
     )
     .fetch_all(pool)
@@ -298,7 +282,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
     let all_conditions = sqlx::query!(
         r#"
         SELECT trigger_id, cond_key, operator as "operator: DbSkillOperator",
-        cond_val, is_precondition, is_or
+            cond_val, is_precondition, is_or
         FROM skill_trigger_conditions WHERE trigger_id = ANY($1::int[])
         "#,
         &trigger_ids
@@ -355,7 +339,59 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
         })
         .collect();
 
-    Ok(Some(SkillDetail { skill, triggers }))
+    Ok(triggers)
+}
+
+pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetail>, sqlx::Error> {
+    let skill = sqlx::query_as!(
+        SkillRow,
+        r#"
+        SELECT id, name, ingame_description, category as "category: DbSkillCategory",
+            rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only, inherited_skill_id
+        FROM skills WHERE id = $1
+        "#,
+        id
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    let Some(skill) = skill else {
+        return Ok(None);
+    };
+
+    let triggers = get_triggers_for_skill(pool, id).await?;
+
+    let inherited = if let Some(inherited_id) = skill.inherited_skill_id {
+        let inherited_skill = sqlx::query_as!(
+            SkillRow,
+            r#"
+            SELECT id, name, ingame_description, category as "category: DbSkillCategory",
+                rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only, inherited_skill_id
+            FROM skills WHERE id = $1
+            "#,
+            inherited_id
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        if let Some(s) = inherited_skill {
+            let inherited_triggers = get_triggers_for_skill(pool, s.id).await?;
+            Some(InheritedSkillRow {
+                skill: s,
+                triggers: inherited_triggers,
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(Some(SkillDetail {
+        skill,
+        triggers,
+        inherited,
+    }))
 }
 
 pub async fn get_skill_acquisitions(
