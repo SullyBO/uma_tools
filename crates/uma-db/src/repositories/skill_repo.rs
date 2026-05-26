@@ -220,7 +220,7 @@ pub async fn upsert_all_skills(pool: &PgPool, skills: &[Skill]) -> Result<(), sq
 pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillRow>, sqlx::Error> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
         "
-        SELECT DISTINCT s.id, s.name, s.ingame_description, s.category, s.rarity, s.sp_cost, s.is_jp_only
+        SELECT DISTINCT s.id, s.name, s.ingame_description, s.category, s.rarity, s.sp_cost, s.is_jp_only, s.inherited_skill_id
         FROM skills s
         ",
     );
@@ -231,6 +231,7 @@ pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillR
     }
 
     qb.push(" WHERE 1=1");
+    qb.push(" AND NOT EXISTS (SELECT 1 FROM skills s2 WHERE s2.inherited_skill_id = s.id)");
 
     if let Some(v) = filter.category {
         qb.push(" AND s.category = ");
@@ -250,6 +251,9 @@ pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillR
     }
 
     qb.push(" ORDER BY s.name");
+
+    let sql = qb.sql();
+    log::warn!("SQL: {}", sql);
 
     qb.build_query_as::<SkillRow>().fetch_all(pool).await
 }
@@ -436,4 +440,19 @@ pub async fn get_skill_acquisitions(
         .collect();
 
     Ok(acquisitions)
+}
+
+pub async fn get_skill_index(pool: &PgPool) -> Result<Vec<SkillRow>, sqlx::Error> {
+    sqlx::query_as!(
+        SkillRow,
+        r#"
+        SELECT id, name, ingame_description, category as "category: DbSkillCategory",
+            rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only, inherited_skill_id
+        FROM skills
+        WHERE NOT EXISTS (SELECT 1 FROM skills s2 WHERE s2.inherited_skill_id = skills.id)
+        ORDER BY name
+        "#,
+    )
+    .fetch_all(pool)
+    .await
 }

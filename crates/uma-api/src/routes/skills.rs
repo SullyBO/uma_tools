@@ -10,16 +10,14 @@ use axum::{
 };
 use uma_db::repositories::skill_repo::get_skill_acquisitions;
 use uma_db::{
-    repositories::skill_repo::{get_skill_by_id, get_skills},
+    repositories::skill_repo::{get_skill_by_id, get_skills, get_skill_index},
     types::SkillFilter,
 };
 
 pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<SkillIndex>>, ApiError> {
-    let rows = sqlx::query_as!(SkillIndex, "SELECT id, name FROM skills ORDER BY name")
-        .fetch_all(&*state.pool)
-        .await?;
-
-    Ok(Json(rows))
+    let rows = get_skill_index(&state.pool).await?;
+    let index = rows.into_iter().map(|r| SkillIndex { id: r.id, name: r.name }).collect();
+    Ok(Json(index))
 }
 
 pub async fn list(
