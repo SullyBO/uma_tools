@@ -1,7 +1,7 @@
 use crate::types::{
     AcquisitionRow, ConditionRow, DbSkillAcquisition, DbSkillCategory, DbSkillOperator,
-    DbSkillRarity, DbSupportSkillAcquisition, EffectRow, InheritedSkillRow, SkillDetail,
-    SkillFilter, SkillRow, TriggerRow,
+    DbSkillRarity, DbSupportSkillAcquisition, EffectRow, SkillFilter, SkillIndexRow, SkillRow,
+    TriggerRow,
 };
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use uma_core::models::skill::{ConditionType, Duration, Skill};
@@ -316,7 +316,7 @@ async fn get_triggers_for_skill(
                 .into_iter()
                 .map(|c| ConditionRow {
                     cond_key: c.cond_key.clone(),
-                    operator: c.operator,
+                    operator: c.operator.to_string(),
                     cond_val: c.cond_val.clone(),
                     is_or: c.is_or,
                 })
@@ -326,7 +326,7 @@ async fn get_triggers_for_skill(
                 .into_iter()
                 .map(|c| ConditionRow {
                     cond_key: c.cond_key.clone(),
-                    operator: c.operator,
+                    operator: c.operator.to_string(),
                     cond_val: c.cond_val.clone(),
                     is_or: c.is_or,
                 })
@@ -346,7 +346,11 @@ async fn get_triggers_for_skill(
     Ok(triggers)
 }
 
-pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetail>, sqlx::Error> {
+pub async fn get_skill_by_id(
+    pool: &PgPool,
+    id: i32,
+) -> Result<Option<(SkillRow, Vec<TriggerRow>, Option<(SkillRow, Vec<TriggerRow>)>)>, sqlx::Error>
+{
     let skill = sqlx::query_as!(
         SkillRow,
         r#"
@@ -380,10 +384,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
 
         if let Some(s) = inherited_skill {
             let inherited_triggers = get_triggers_for_skill(pool, s.id).await?;
-            Some(InheritedSkillRow {
-                skill: s,
-                triggers: inherited_triggers,
-            })
+            Some((s, inherited_triggers))
         } else {
             None
         }
@@ -391,11 +392,7 @@ pub async fn get_skill_by_id(pool: &PgPool, id: i32) -> Result<Option<SkillDetai
         None
     };
 
-    Ok(Some(SkillDetail {
-        skill,
-        triggers,
-        inherited,
-    }))
+    Ok(Some((skill, triggers, inherited)))
 }
 
 pub async fn get_skill_acquisitions(
@@ -442,12 +439,11 @@ pub async fn get_skill_acquisitions(
     Ok(acquisitions)
 }
 
-pub async fn get_skill_index(pool: &PgPool) -> Result<Vec<SkillRow>, sqlx::Error> {
+pub async fn get_skill_index(pool: &PgPool) -> Result<Vec<SkillIndexRow>, sqlx::Error> {
     sqlx::query_as!(
-        SkillRow,
+        SkillIndexRow,
         r#"
-        SELECT id, name, ingame_description, category as "category: DbSkillCategory",
-            rarity as "rarity: DbSkillRarity", sp_cost, is_jp_only, inherited_skill_id
+        SELECT id, name
         FROM skills
         WHERE NOT EXISTS (SELECT 1 FROM skills s2 WHERE s2.inherited_skill_id = skills.id)
         ORDER BY name

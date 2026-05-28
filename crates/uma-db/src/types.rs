@@ -192,6 +192,30 @@ impl fmt::Display for DbSkillCategory {
     }
 }
 
+impl From<Category> for DbSkillCategory {
+    fn from(c: Category) -> Self {
+        match c {
+            Category::Green => DbSkillCategory::Green,
+            Category::Recovery => DbSkillCategory::Recovery,
+            Category::Velocity => DbSkillCategory::Velocity,
+            Category::Acceleration => DbSkillCategory::Acceleration,
+            Category::Movement => DbSkillCategory::Movement,
+            Category::Gate => DbSkillCategory::Gate,
+            Category::Vision => DbSkillCategory::Vision,
+            Category::SpeedDebuff => DbSkillCategory::SpeedDebuff,
+            Category::AccelDebuff => DbSkillCategory::AccelDebuff,
+            Category::FrenzyDebuff => DbSkillCategory::FrenzyDebuff,
+            Category::StaminaDrain => DbSkillCategory::StaminaDrain,
+            Category::VisionDebuff => DbSkillCategory::VisionDebuff,
+            Category::Purple => DbSkillCategory::Purple,
+            Category::Scenario => DbSkillCategory::Scenario,
+            Category::Unique => DbSkillCategory::Unique,
+            Category::UniqueRecovery => DbSkillCategory::UniqueRecovery,
+            Category::Zenkai => DbSkillCategory::Zenkai,
+        }
+    }
+}
+
 #[derive(Debug, Type, Deserialize)]
 #[sqlx(type_name = "skill_rarity")]
 #[serde(rename_all = "snake_case")]
@@ -217,30 +241,6 @@ impl fmt::Display for DbSkillRarity {
     }
 }
 
-impl From<Category> for DbSkillCategory {
-    fn from(c: Category) -> Self {
-        match c {
-            Category::Green => DbSkillCategory::Green,
-            Category::Recovery => DbSkillCategory::Recovery,
-            Category::Velocity => DbSkillCategory::Velocity,
-            Category::Acceleration => DbSkillCategory::Acceleration,
-            Category::Movement => DbSkillCategory::Movement,
-            Category::Gate => DbSkillCategory::Gate,
-            Category::Vision => DbSkillCategory::Vision,
-            Category::SpeedDebuff => DbSkillCategory::SpeedDebuff,
-            Category::AccelDebuff => DbSkillCategory::AccelDebuff,
-            Category::FrenzyDebuff => DbSkillCategory::FrenzyDebuff,
-            Category::StaminaDrain => DbSkillCategory::StaminaDrain,
-            Category::VisionDebuff => DbSkillCategory::VisionDebuff,
-            Category::Purple => DbSkillCategory::Purple,
-            Category::Scenario => DbSkillCategory::Scenario,
-            Category::Unique => DbSkillCategory::Unique,
-            Category::UniqueRecovery => DbSkillCategory::UniqueRecovery,
-            Category::Zenkai => DbSkillCategory::Zenkai,
-        }
-    }
-}
-
 impl From<SkillRarity> for DbSkillRarity {
     fn from(r: SkillRarity) -> Self {
         match r {
@@ -252,9 +252,10 @@ impl From<SkillRarity> for DbSkillRarity {
     }
 }
 
-#[derive(Debug, Clone, Copy, Type, Deserialize)]
+// Intentionally not public — used only within uma-db for upsert queries.
+#[derive(Debug, Clone, Copy, Type)]
 #[sqlx(type_name = "skill_operator")]
-pub enum DbSkillOperator {
+pub(crate) enum DbSkillOperator {
     #[sqlx(rename = "eq")]
     Eq,
     #[sqlx(rename = "not_eq")]
@@ -375,17 +376,18 @@ pub struct SkillRow {
     pub inherited_skill_id: Option<i32>,
 }
 
+// Separate type for index queries — only fetches what the index actually needs.
+#[derive(sqlx::FromRow)]
+pub struct SkillIndexRow {
+    pub id: i32,
+    pub name: String,
+}
+
 pub struct SkillFilter {
     pub category: Option<DbSkillCategory>,
     pub rarity: Option<DbSkillRarity>,
     pub is_jp_only: Option<bool>,
     pub effect_type: Option<String>,
-}
-
-pub struct SkillDetail {
-    pub skill: SkillRow,
-    pub triggers: Vec<TriggerRow>,
-    pub inherited: Option<InheritedSkillRow>,
 }
 
 pub struct TriggerRow {
@@ -405,7 +407,8 @@ pub struct EffectRow {
 
 pub struct ConditionRow {
     pub cond_key: String,
-    pub operator: DbSkillOperator,
+    // Serialized at the DB boundary — callers receive a plain string.
+    pub operator: String,
     pub cond_val: String,
     pub is_or: bool,
 }
@@ -547,9 +550,4 @@ pub struct AcquisitionRow {
     pub source_id: i32,
     pub source_type: String,
     pub acquisition: String,
-}
-
-pub struct InheritedSkillRow {
-    pub skill: SkillRow,
-    pub triggers: Vec<TriggerRow>,
 }
