@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "crates/uma-core",
-    "crates/uma-cli", 
+    "crates/uma-cli",
     "crates/uma-scraper",
     "crates/uma-db",
     "crates/uma-api",
@@ -9,3 +9,16 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
+uma-core = { path = "crates/uma-core" }
+uma-scraper = { path = "crates/uma-scraper" }
+uma-db = { path = "crates/uma-db" }
+
+log = "0.4.30"
+env_logger = "0.11"
+tokio = { version = "1.52.3", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.150"
+dotenvy = "0.15"
+thiserror = "2"
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "macros", "migrate", "chrono"] }

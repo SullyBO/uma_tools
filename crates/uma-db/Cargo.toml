@@ -4,12 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-uma-core = { path = "../uma-core" }
-
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "macros", "migrate", "chrono"] }
-tokio = { version = "1", features = ["full"] }
-thiserror = "2"
-dotenvy = "0.15"
-log = "0.4"
-serde = { version = "1", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
+uma-core = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+dotenvy = { workspace = true }
+thiserror = { workspace = true }
+sqlx = { workspace = true }
