@@ -72,7 +72,7 @@ async fn main() {
         api_key,
     };
 
-    let mut app = Router::new()
+    let v1 = Router::new()
         .route("/umas", get(routes::umas::list))
         .route("/umas/index", get(routes::umas::index))
         .route("/umas/{id}", get(routes::umas::detail))
@@ -80,7 +80,10 @@ async fn main() {
         .route("/skills/index", get(routes::skills::index))
         .route("/skills/{id}", get(routes::skills::detail))
         .route("/cards/index", get(routes::cards::index))
-        .route("/cards/{id}", get(routes::cards::detail))
+        .route("/cards/{id}", get(routes::cards::detail));
+
+    let mut app = Router::new()
+        .nest("/v1", v1)
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
@@ -95,7 +98,10 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .unwrap();
-    log::info!("Listening on port {port}");
+    log::info!(
+        "uma-api {} listening on port {port}",
+        env!("CARGO_PKG_VERSION")
+    );
     axum::serve(listener, app).await.unwrap();
 }
 

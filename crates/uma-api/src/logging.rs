@@ -59,6 +59,7 @@ pub async fn axiom_middleware(
         client
             .ingest(serde_json::json!({
                 "_time": chrono::Utc::now().to_rfc3339(),
+                "api_version": env!("CARGO_PKG_VERSION"),
                 "method": method,
                 "path": path,
                 "query": query,
