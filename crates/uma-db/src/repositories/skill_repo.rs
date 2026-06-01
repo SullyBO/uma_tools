@@ -253,7 +253,7 @@ pub async fn get_skills(pool: &PgPool, filter: SkillFilter) -> Result<Vec<SkillR
     qb.push(" ORDER BY s.name");
 
     let sql = qb.sql();
-    log::warn!("SQL: {}", sql);
+    log::warn!("SQL: {:?}", sql);
 
     qb.build_query_as::<SkillRow>().fetch_all(pool).await
 }
