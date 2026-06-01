@@ -18,7 +18,10 @@ pub async fn index(State(state): State<AppState>) -> Result<Json<Vec<SkillIndex>
     let rows = get_skill_index(&state.pool).await?;
     let index = rows
         .into_iter()
-        .map(|r| SkillIndex { id: r.id, name: r.name })
+        .map(|r| SkillIndex {
+            id: r.id,
+            name: r.name,
+        })
         .collect();
     Ok(Json(index))
 }

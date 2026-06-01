@@ -6,11 +6,13 @@ use axum::{
     response::Response,
     routing::get,
 };
+use logging::{AxiomClient, axiom_middleware};
 use sqlx::PgPool;
 use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
 mod error;
+mod logging;
 mod routes;
 
 #[derive(Clone, Debug)]
@@ -43,6 +45,7 @@ async fn main() {
     };
     dotenvy::from_filename(env_file).ok();
     env_logger::init();
+
     let api_key = ApiKey(
         std::env::var("API_KEY")
             .expect("API_KEY must be set")
@@ -50,6 +53,14 @@ async fn main() {
             .to_string(),
     );
     log::info!("Running in {app_env} environment");
+
+    let axiom_client = if app_env == "prod" {
+        let token = std::env::var("AXIOM_TOKEN").expect("AXIOM_TOKEN must be set in prod");
+        let dataset = std::env::var("AXIOM_DATASET").expect("AXIOM_DATASET must be set in prod");
+        Some(AxiomClient::new(token, dataset))
+    } else {
+        None
+    };
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPool::connect(&database_url)
@@ -61,7 +72,7 @@ async fn main() {
         api_key,
     };
 
-    let app = Router::new()
+    let mut app = Router::new()
         .route("/umas", get(routes::umas::list))
         .route("/umas/index", get(routes::umas::index))
         .route("/umas/{id}", get(routes::umas::detail))
@@ -75,6 +86,10 @@ async fn main() {
             auth_middleware,
         ))
         .with_state(state);
+
+    if let Some(client) = axiom_client {
+        app = app.layer(middleware::from_fn_with_state(client, axiom_middleware));
+    }
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))

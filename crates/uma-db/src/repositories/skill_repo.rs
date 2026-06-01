@@ -349,8 +349,14 @@ async fn get_triggers_for_skill(
 pub async fn get_skill_by_id(
     pool: &PgPool,
     id: i32,
-) -> Result<Option<(SkillRow, Vec<TriggerRow>, Option<(SkillRow, Vec<TriggerRow>)>)>, sqlx::Error>
-{
+) -> Result<
+    Option<(
+        SkillRow,
+        Vec<TriggerRow>,
+        Option<(SkillRow, Vec<TriggerRow>)>,
+    )>,
+    sqlx::Error,
+> {
     let skill = sqlx::query_as!(
         SkillRow,
         r#"
