@@ -1,8 +1,12 @@
 @echo off
 set APP_ENV=%1
 if "%APP_ENV%"=="prod" (
-    for /f "tokens=2 delims==" %%a in ('findstr /i "DATABASE_URL" .env.prod') do set DATABASE_URL=%%a
+    for /f "usebackq tokens=1,* delims==" %%a in (".env.prod") do (
+        if /i "%%a"=="DATABASE_URL" set DATABASE_URL=%%b
+    )
 ) else (
-    for /f "tokens=2 delims==" %%a in ('findstr /i "DATABASE_URL" .env') do set DATABASE_URL=%%a
+    for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
+        if /i "%%a"=="DATABASE_URL" set DATABASE_URL=%%b
+    )
 )
 cargo sqlx migrate run
