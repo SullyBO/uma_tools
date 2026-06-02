@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT trigger_id, effect_type, effect_value FROM skill_trigger_effects WHERE trigger_id = ANY($1::int[])",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "trigger_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_effects",
+            "name": "trigger_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "effect_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_effects",
+            "name": "effect_type"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "effect_value",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_effects",
+            "name": "effect_value"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "c26af7625ce940a77a4b453234aadcbdd0800a46f94511d3b8a878c4df5e5224"
+}

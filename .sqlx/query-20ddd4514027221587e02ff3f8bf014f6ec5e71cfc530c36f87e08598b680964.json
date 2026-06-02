@@ -1,0 +1,149 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, name, ingame_description, category as \"category: DbSkillCategory\",\n            rarity as \"rarity: DbSkillRarity\", sp_cost, is_jp_only, inherited_skill_id\n        FROM skills WHERE id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ingame_description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "ingame_description"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "category: DbSkillCategory",
+        "type_info": {
+          "Custom": {
+            "name": "skill_category",
+            "kind": {
+              "Enum": [
+                "green",
+                "recovery",
+                "unique_recovery",
+                "velocity",
+                "acceleration",
+                "movement",
+                "gate",
+                "vision",
+                "speed_debuff",
+                "accel_debuff",
+                "frenzy_debuff",
+                "stamina_drain",
+                "vision_debuff",
+                "purple",
+                "scenario",
+                "unique",
+                "zenkai"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "category"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rarity: DbSkillRarity",
+        "type_info": {
+          "Custom": {
+            "name": "skill_rarity",
+            "kind": {
+              "Enum": [
+                "normal",
+                "rare",
+                "unique",
+                "evolution"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "rarity"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "sp_cost",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "sp_cost"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "is_jp_only",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "is_jp_only"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "inherited_skill_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "inherited_skill_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "20ddd4514027221587e02ff3f8bf014f6ec5e71cfc530c36f87e08598b680964"
+}

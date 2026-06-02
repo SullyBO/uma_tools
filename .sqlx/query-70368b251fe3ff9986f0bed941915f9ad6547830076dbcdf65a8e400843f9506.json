@@ -1,0 +1,277 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n    INSERT INTO umas (\n        id, name, subtitle, rarity,\n        stat_speed, stat_stamina, stat_power, stat_guts, stat_wit,\n        growth_speed, growth_stamina, growth_power, growth_guts, growth_wit,\n        apt_turf, apt_dirt,\n        apt_short, apt_mile, apt_medium, apt_long,\n        apt_front, apt_pace, apt_late, apt_end,\n        release_date, is_predicted_date\n    )\n    SELECT * FROM UNNEST(\n        $1::int[], $2::text[], $3::text[], $4::uma_rarity[],\n        $5::int[], $6::int[], $7::int[], $8::int[], $9::int[],\n        $10::int[], $11::int[], $12::int[], $13::int[], $14::int[],\n        $15::aptitude_level[], $16::aptitude_level[],\n        $17::aptitude_level[], $18::aptitude_level[], $19::aptitude_level[], $20::aptitude_level[],\n        $21::aptitude_level[], $22::aptitude_level[], $23::aptitude_level[], $24::aptitude_level[],\n        $25::date[], $26::bool[]\n    )\n    ON CONFLICT (id) DO UPDATE SET\n        name = EXCLUDED.name,\n        subtitle = EXCLUDED.subtitle,\n        rarity = EXCLUDED.rarity,\n        stat_speed = EXCLUDED.stat_speed,\n        stat_stamina = EXCLUDED.stat_stamina,\n        stat_power = EXCLUDED.stat_power,\n        stat_guts = EXCLUDED.stat_guts,\n        stat_wit = EXCLUDED.stat_wit,\n        growth_speed = EXCLUDED.growth_speed,\n        growth_stamina = EXCLUDED.growth_stamina,\n        growth_power = EXCLUDED.growth_power,\n        growth_guts = EXCLUDED.growth_guts,\n        growth_wit = EXCLUDED.growth_wit,\n        apt_turf = EXCLUDED.apt_turf,\n        apt_dirt = EXCLUDED.apt_dirt,\n        apt_short = EXCLUDED.apt_short,\n        apt_mile = EXCLUDED.apt_mile,\n        apt_medium = EXCLUDED.apt_medium,\n        apt_long = EXCLUDED.apt_long,\n        apt_front = EXCLUDED.apt_front,\n        apt_pace = EXCLUDED.apt_pace,\n        apt_late = EXCLUDED.apt_late,\n        apt_end = EXCLUDED.apt_end,\n        release_date = EXCLUDED.release_date,\n        is_predicted_date = EXCLUDED.is_predicted_date\n    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        {
+          "Custom": {
+            "name": "uma_rarity[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "uma_rarity",
+                  "kind": {
+                    "Enum": [
+                      "r",
+                      "sr",
+                      "ssr"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "aptitude_level[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "aptitude_level",
+                  "kind": {
+                    "Enum": [
+                      "g",
+                      "f",
+                      "e",
+                      "d",
+                      "c",
+                      "b",
+                      "a"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "DateArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "70368b251fe3ff9986f0bed941915f9ad6547830076dbcdf65a8e400843f9506"
+}

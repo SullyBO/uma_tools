@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM support_card_skills WHERE support_id = ANY($1::int[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "71789f3f56498aa3174bdc5231ef50ba4bdba7e69115271ae5959dd7b8142c11"
+}

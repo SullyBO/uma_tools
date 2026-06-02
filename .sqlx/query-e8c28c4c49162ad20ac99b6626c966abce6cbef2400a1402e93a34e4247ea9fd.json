@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT support_id, char_name, title,\n            card_type as \"card_type: DbCardType\",\n            rarity as \"rarity: DbCardRarity\",\n            is_welfare, release_en, is_predicted_date, unique_effect\n        FROM support_cards\n        ORDER BY char_name, title\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "support_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "support_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "char_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "char_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "card_type: DbCardType",
+        "type_info": {
+          "Custom": {
+            "name": "support_card_type",
+            "kind": {
+              "Enum": [
+                "speed",
+                "stamina",
+                "power",
+                "guts",
+                "wit",
+                "friend",
+                "group"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "card_type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rarity: DbCardRarity",
+        "type_info": {
+          "Custom": {
+            "name": "support_card_rarity",
+            "kind": {
+              "Enum": [
+                "r",
+                "sr",
+                "ssr"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "rarity"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "is_welfare",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "is_welfare"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "release_en",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "release_en"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "is_predicted_date",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "is_predicted_date"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "unique_effect",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "support_cards",
+            "name": "unique_effect"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "e8c28c4c49162ad20ac99b6626c966abce6cbef2400a1402e93a34e4247ea9fd"
+}

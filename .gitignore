@@ -20,8 +20,5 @@ target/
 .env
 .env.prod
 
-# SQLx offline query cache
-.sqlx/
-
 # OS
 .DS_Store

@@ -1,0 +1,72 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO skills (id, name, ingame_description, category, rarity, sp_cost, is_jp_only, inherited_skill_id)\n        SELECT * FROM UNNEST($1::int[], $2::text[], $3::text[], $4::skill_category[], $5::skill_rarity[], $6::int[], $7::bool[], $8::int[])\n        ON CONFLICT (id) DO UPDATE SET\n            name = EXCLUDED.name,\n            ingame_description = EXCLUDED.ingame_description,\n            category = EXCLUDED.category,\n            rarity = EXCLUDED.rarity,\n            sp_cost = EXCLUDED.sp_cost,\n            is_jp_only = EXCLUDED.is_jp_only,\n            inherited_skill_id = EXCLUDED.inherited_skill_id\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        {
+          "Custom": {
+            "name": "skill_category[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "skill_category",
+                  "kind": {
+                    "Enum": [
+                      "green",
+                      "recovery",
+                      "unique_recovery",
+                      "velocity",
+                      "acceleration",
+                      "movement",
+                      "gate",
+                      "vision",
+                      "speed_debuff",
+                      "accel_debuff",
+                      "frenzy_debuff",
+                      "stamina_drain",
+                      "vision_debuff",
+                      "purple",
+                      "scenario",
+                      "unique",
+                      "zenkai"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "skill_rarity[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "skill_rarity",
+                  "kind": {
+                    "Enum": [
+                      "normal",
+                      "rare",
+                      "unique",
+                      "evolution"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Int4Array",
+        "BoolArray",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d308cea9028367191c0d69ab71370459c08187b3d9f01496cfe602fa05e7a439"
+}

@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT support_id, effect_id, lb0, lb1, lb2, lb3, mlb\n         FROM support_card_effects WHERE support_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "support_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_effects",
+            "name": "support_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "effect_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_effects",
+            "name": "effect_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "lb0",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_effects",
+            "name": "lb0"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "lb1",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_effects",
+            "name": "lb1"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "lb2",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_effects",
+            "name": "lb2"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "lb3",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_effects",
+            "name": "lb3"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "mlb",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_effects",
+            "name": "mlb"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "8a9f62570ddb463885d9ded8df28fc59dab7239926851ee4ac55194eee657376"
+}

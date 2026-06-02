@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO skill_trigger_conditions (trigger_id, cond_key, operator, cond_val, is_precondition, is_or)\n            SELECT * FROM UNNEST($1::int[], $2::text[], $3::skill_operator[], $4::text[], $5::bool[], $6::bool[])\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "TextArray",
+        {
+          "Custom": {
+            "name": "skill_operator[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "skill_operator",
+                  "kind": {
+                    "Enum": [
+                      "eq",
+                      "not_eq",
+                      "gt",
+                      "gt_eq",
+                      "lt",
+                      "lt_eq"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "TextArray",
+        "BoolArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "433796be5df58606d3a88f83c4e65819a0224512f904c23586df43a99d44482b"
+}

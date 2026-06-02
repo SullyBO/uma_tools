@@ -1,0 +1,406 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, name, subtitle,\n            apt_turf as \"apt_turf: DbAptitudeLevel\",\n            apt_dirt as \"apt_dirt: DbAptitudeLevel\",\n            apt_short as \"apt_short: DbAptitudeLevel\",\n            apt_mile as \"apt_mile: DbAptitudeLevel\",\n            apt_medium as \"apt_medium: DbAptitudeLevel\",\n            apt_long as \"apt_long: DbAptitudeLevel\",\n            apt_front as \"apt_front: DbAptitudeLevel\",\n            apt_pace as \"apt_pace: DbAptitudeLevel\",\n            apt_late as \"apt_late: DbAptitudeLevel\",\n            apt_end as \"apt_end: DbAptitudeLevel\",\n            growth_speed, growth_stamina, growth_power, growth_guts, growth_wit,\n            release_date, is_predicted_date\n        FROM umas WHERE id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subtitle",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "subtitle"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "apt_turf: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_turf"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "apt_dirt: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_dirt"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "apt_short: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_short"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "apt_mile: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_mile"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "apt_medium: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_medium"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "apt_long: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_long"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "apt_front: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_front"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "apt_pace: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_pace"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "apt_late: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_late"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "apt_end: DbAptitudeLevel",
+        "type_info": {
+          "Custom": {
+            "name": "aptitude_level",
+            "kind": {
+              "Enum": [
+                "g",
+                "f",
+                "e",
+                "d",
+                "c",
+                "b",
+                "a"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "apt_end"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "growth_speed",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "growth_speed"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "growth_stamina",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "growth_stamina"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "growth_power",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "growth_power"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "growth_guts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "growth_guts"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "growth_wit",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "growth_wit"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "release_date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "release_date"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "is_predicted_date",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "umas",
+            "name": "is_predicted_date"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "62ab5349679a39451c3b1dd6a3cc3251849d6e4c06927a4ad59a0eb082d8224f"
+}

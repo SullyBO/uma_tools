@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO skill_trigger_effects (trigger_id, effect_type, effect_value)\n            SELECT * FROM UNNEST($1::int[], $2::text[], $3::real[])\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "TextArray",
+        "Float4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d591979f17a346b323f0e3cb00a4ed61e970799ea0b5404692b3f3cc9458bbbf"
+}

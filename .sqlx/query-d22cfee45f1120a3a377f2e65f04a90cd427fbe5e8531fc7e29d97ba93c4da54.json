@@ -1,0 +1,102 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT trigger_id, cond_key, operator as \"operator: DbSkillOperator\",\n            cond_val, is_precondition, is_or\n        FROM skill_trigger_conditions WHERE trigger_id = ANY($1::int[])\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "trigger_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_conditions",
+            "name": "trigger_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "cond_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_conditions",
+            "name": "cond_key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operator: DbSkillOperator",
+        "type_info": {
+          "Custom": {
+            "name": "skill_operator",
+            "kind": {
+              "Enum": [
+                "eq",
+                "not_eq",
+                "gt",
+                "gt_eq",
+                "lt",
+                "lt_eq"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_conditions",
+            "name": "operator"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "cond_val",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_conditions",
+            "name": "cond_val"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "is_precondition",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_conditions",
+            "name": "is_precondition"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "is_or",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "skill_trigger_conditions",
+            "name": "is_or"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d22cfee45f1120a3a377f2e65f04a90cd427fbe5e8531fc7e29d97ba93c4da54"
+}

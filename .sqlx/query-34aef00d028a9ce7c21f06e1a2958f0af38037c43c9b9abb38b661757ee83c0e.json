@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO support_cards\n            (support_id, char_name, title, card_type, rarity, is_welfare,\n             release_en, is_predicted_date, unique_effect)\n        SELECT * FROM UNNEST(\n            $1::int[], $2::text[], $3::text[], $4::support_card_type[], $5::support_card_rarity[], $6::bool[],\n            $7::date[], $8::bool[], $9::text[]\n        )\n        ON CONFLICT (support_id) DO UPDATE SET\n            char_name         = EXCLUDED.char_name,\n            title             = EXCLUDED.title,\n            card_type         = EXCLUDED.card_type,\n            rarity            = EXCLUDED.rarity,\n            is_welfare        = EXCLUDED.is_welfare,\n            release_en        = EXCLUDED.release_en,\n            is_predicted_date = EXCLUDED.is_predicted_date,\n            unique_effect     = EXCLUDED.unique_effect\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        {
+          "Custom": {
+            "name": "support_card_type[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "support_card_type",
+                  "kind": {
+                    "Enum": [
+                      "speed",
+                      "stamina",
+                      "power",
+                      "guts",
+                      "wit",
+                      "friend",
+                      "group"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "support_card_rarity[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "support_card_rarity",
+                  "kind": {
+                    "Enum": [
+                      "r",
+                      "sr",
+                      "ssr"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "BoolArray",
+        "DateArray",
+        "BoolArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "34aef00d028a9ce7c21f06e1a2958f0af38037c43c9b9abb38b661757ee83c0e"
+}

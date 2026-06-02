@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT support_id, skill_id,\n            acquisition as \"acquisition: DbSupportSkillAcquisition\"\n        FROM support_card_skills WHERE support_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "support_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_skills",
+            "name": "support_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "skill_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_skills",
+            "name": "skill_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "acquisition: DbSupportSkillAcquisition",
+        "type_info": {
+          "Custom": {
+            "name": "support_skill_acquisition",
+            "kind": {
+              "Enum": [
+                "event",
+                "hint"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "support_card_skills",
+            "name": "acquisition"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4bad44ecff6175afbb63f2436f799289e3cc5867a44d36401216f04517854d37"
+}

@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT scs.support_id AS source_id, scs.acquisition AS \"acquisition: DbSupportSkillAcquisition\"\n        FROM support_card_skills scs\n        JOIN support_cards sc ON sc.support_id = scs.support_id\n        WHERE scs.skill_id = $1\n        AND sc.rarity != 'r'\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "support_card_skills",
+            "name": "support_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "acquisition: DbSupportSkillAcquisition",
+        "type_info": {
+          "Custom": {
+            "name": "support_skill_acquisition",
+            "kind": {
+              "Enum": [
+                "event",
+                "hint"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "support_card_skills",
+            "name": "acquisition"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b44565400c8adc0ea8150ac3c0d7a829eef1f7899d95e4d47359857e0ae6b433"
+}

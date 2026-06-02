@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO skill_condition_types (cond_key, description, example)\n        SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[])\n        ON CONFLICT (cond_key) DO UPDATE SET\n            description = EXCLUDED.description,\n            example = EXCLUDED.example\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f2d07077e9cb715c9d072dad2eebfc9cf980140d9d3e877ad8c4a8fc9fc8d158"
+}

@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO support_card_skills (support_id, skill_id, acquisition)\n            SELECT * FROM UNNEST($1::int[], $2::int[], $3::support_skill_acquisition[])\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Int4Array",
+        {
+          "Custom": {
+            "name": "support_skill_acquisition[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "support_skill_acquisition",
+                  "kind": {
+                    "Enum": [
+                      "event",
+                      "hint"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "524f4e2a592df7959bb0e7d617ce069e568e80e86bd65498a93be0c7d687532d"
+}

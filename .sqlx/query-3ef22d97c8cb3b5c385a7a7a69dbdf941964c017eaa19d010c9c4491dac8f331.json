@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT uma_id AS source_id, acquisition AS \"acquisition: DbSkillAcquisition\"\n        FROM uma_skills WHERE skill_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "uma_skills",
+            "name": "uma_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "acquisition: DbSkillAcquisition",
+        "type_info": {
+          "Custom": {
+            "name": "skill_acquisition",
+            "kind": {
+              "Enum": [
+                "unique",
+                "innate",
+                "awakening",
+                "event",
+                "evolution"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "uma_skills",
+            "name": "acquisition"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3ef22d97c8cb3b5c385a7a7a69dbdf941964c017eaa19d010c9c4491dac8f331"
+}

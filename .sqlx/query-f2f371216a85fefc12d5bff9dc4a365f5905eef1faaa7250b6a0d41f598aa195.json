@@ -1,0 +1,150 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT s.id, s.name, s.category as \"category: DbSkillCategory\",\n            s.rarity as \"rarity: DbSkillRarity\",\n            s.sp_cost, us.acquisition as \"acquisition: DbSkillAcquisition\",\n            us.evolved_from\n        FROM uma_skills us\n        JOIN skills s ON s.id = us.skill_id\n        WHERE us.uma_id = $1\n        ORDER BY s.name\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "category: DbSkillCategory",
+        "type_info": {
+          "Custom": {
+            "name": "skill_category",
+            "kind": {
+              "Enum": [
+                "green",
+                "recovery",
+                "unique_recovery",
+                "velocity",
+                "acceleration",
+                "movement",
+                "gate",
+                "vision",
+                "speed_debuff",
+                "accel_debuff",
+                "frenzy_debuff",
+                "stamina_drain",
+                "vision_debuff",
+                "purple",
+                "scenario",
+                "unique",
+                "zenkai"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "category"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "rarity: DbSkillRarity",
+        "type_info": {
+          "Custom": {
+            "name": "skill_rarity",
+            "kind": {
+              "Enum": [
+                "normal",
+                "rare",
+                "unique",
+                "evolution"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "rarity"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "sp_cost",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "skills",
+            "name": "sp_cost"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "acquisition: DbSkillAcquisition",
+        "type_info": {
+          "Custom": {
+            "name": "skill_acquisition",
+            "kind": {
+              "Enum": [
+                "unique",
+                "innate",
+                "awakening",
+                "event",
+                "evolution"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "uma_skills",
+            "name": "acquisition"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "evolved_from",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "uma_skills",
+            "name": "evolved_from"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "f2f371216a85fefc12d5bff9dc4a365f5905eef1faaa7250b6a0d41f598aa195"
+}

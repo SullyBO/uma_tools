@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM skill_triggers WHERE skill_id = ANY($1::int[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "995375e953d24809a8e66e22dc2dddfc71d991641f46d08527ed326a3bb1d28e"
+}
