@@ -124,6 +124,7 @@ pub fn icon_id_to_category(icon_id: u32) -> Option<Category> {
         1010051 => Category::Scenario,
         2010011 => Category::Scenario,
         2010016 => Category::Scenario,
+        0 => Category::Scenario,
         other => {
             warn!("Unknown icon_id: {other}, skill will be skipped");
             return None;
