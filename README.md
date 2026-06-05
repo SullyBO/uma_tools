@@ -42,7 +42,7 @@ uma sync all          # Both
 
 ## Status
 
-It's a work in progress. Discord bot frontend is a planned separate project.
+Live, contact me if you want API access.
 
 ## License
 
