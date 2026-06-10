@@ -88,7 +88,14 @@ fn parse_effect_type(e: &Value) -> Option<EffectType> {
         5 => Some(EffectType::WitUp(scale(10000.0))),
         6 => Some(EffectType::RunawaySkill),
         8 => Some(EffectType::FieldOfViewUp(scale(10000.0))),
-        9 => Some(EffectType::StaminaRecovery(scale(1000.0))),
+        9 => {
+            let has_target = e["target"].is_number();
+            if has_target {
+                Some(EffectType::StaminaDrain(scale(10000.0).abs()))
+            } else {
+                Some(EffectType::StaminaRecovery(scale(10000.0)))
+            }
+        }
         10 => Some(EffectType::StartReactionImprovement(scale(10000.0))),
         13 => Some(EffectType::RushTimeIncrease(scale(10000.0))),
         14 => Some(EffectType::StartDelayAdded(scale(10000.0))),
@@ -300,5 +307,23 @@ mod tests {
             parse_effect(&cg, SkillId(1)),
             Err(ScraperError::InvalidCondition(_))
         ));
+    }
+
+    #[test]
+    fn parses_stamina_drain() {
+        let cg = make_cg(serde_json::json!({
+            "effects": [{"type": 9, "target": 9, "target_details": 5, "value": -100}]
+        }));
+        let effect = parse_effect(&cg, SkillId(1)).unwrap();
+        assert!(matches!(effect.effects[0], EffectType::StaminaDrain(v) if v > 0.0));
+    }
+
+    #[test]
+    fn parses_stamina_recovery() {
+        let cg = make_cg(serde_json::json!({
+            "effects": [{"type": 9, "value": 350}]
+        }));
+        let effect = parse_effect(&cg, SkillId(1)).unwrap();
+        assert!(matches!(effect.effects[0], EffectType::StaminaRecovery(_)));
     }
 }

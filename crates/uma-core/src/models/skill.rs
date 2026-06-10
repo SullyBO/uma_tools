@@ -92,6 +92,7 @@ pub enum EffectType {
     ActivateRelatedSkillsOnAllUma,
     UseRandomRareSkills(f32),
     EvolvedSkillDurationUp(f32),
+    StaminaDrain(f32),
 }
 
 impl EffectType {
@@ -121,6 +122,7 @@ impl EffectType {
             Self::RunawaySkill => "Runaway",
             Self::DebuffImmunity => "Debuff Immunity",
             Self::ActivateRelatedSkillsOnAllUma => "Activate Related Skills on All Uma",
+            Self::StaminaDrain(_) => "Stamina Drain",
         }
     }
 
@@ -147,6 +149,7 @@ impl EffectType {
             | Self::RushTimeIncrease(v)
             | Self::RushChanceDecrease(v)
             | Self::UseRandomRareSkills(v)
+            | Self::StaminaDrain(v)
             | Self::EvolvedSkillDurationUp(v) => Some(*v),
         }
     }
@@ -183,6 +186,7 @@ impl std::fmt::Display for EffectType {
             Self::RunawaySkill => write!(f, "Runaway"),
             Self::DebuffImmunity => write!(f, "Debuff Immunity"),
             Self::ActivateRelatedSkillsOnAllUma => write!(f, "Activate Related Skills on All Uma"),
+            Self::StaminaDrain(v) => write!(f, "Stamina Drain -{}", fmt_val(*v)),
         }
     }
 }
